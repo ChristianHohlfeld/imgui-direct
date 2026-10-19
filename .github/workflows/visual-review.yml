@@ -1,7 +1,8 @@
 name: Visual review (Chromium WebGL2)
 on:
   push:
-    branches: [feature/visual-refresh]
+    branches: [main, feature/visual-refresh]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
