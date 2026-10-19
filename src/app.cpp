@@ -9,6 +9,7 @@
 
 #ifdef __EMSCRIPTEN__
 extern "C" void browser_input_rect(float,float,float,float);
+extern "C" void browser_qa_state(int page,int clicks);
 #endif
 
 namespace {
@@ -255,5 +256,9 @@ void app::draw(){
     }
     ui::scroll::apply();
     ui::scroll::end_frame();
+#ifdef __EMSCRIPTEN__
+    // Test instrumentation only, not a second UI or user-visible controls.
+    browser_qa_state(d.page,d.clicks);
+#endif
     ImGui::End();
 }

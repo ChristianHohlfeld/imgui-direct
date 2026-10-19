@@ -117,9 +117,24 @@ try {
  try{
    await listPage.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
    await listPage.waitForTimeout(2400);
-   await listPage.mouse.click(339,122);
-   await listPage.waitForFunction(()=>window.__imguiScroll?.rowsRendered>0,
-                                  {timeout:4500});
+   // Hold through at least two frames so real ImGui mouse-down/up are
+   // processed, rather than dropping a synthetic 1ms click on WebGL.
+   await listPage.mouse.move(339,122);
+   await listPage.mouse.down();
+   await listPage.waitForTimeout(105);
+   await listPage.mouse.up();
+   try {
+     await listPage.waitForFunction(()=>window.__imguiUIState?.page===3,
+                                    null,{timeout:4500});
+     await listPage.waitForFunction(()=>window.__imguiScroll?.rowsRendered>0,
+                                    null,{timeout:4500});
+   } catch(error) {
+     console.log('list selection debug',JSON.stringify(
+       await listPage.evaluate(()=>({ui:window.__imguiUIState,
+           scroll:window.__imguiScroll, wheel:window.__imguiRawWheel}))));
+     await listPage.screenshot({path:'visual-review/list-selection-failed.png'});
+     throw error;
+   }
    const before=await listPage.evaluate(()=>window.__imguiScrollTotal||0);
    const visible=await listPage.evaluate(()=>window.__imguiScroll?.rowsRendered);
    if(visible>55)failures.push('list virtualization submitted '+visible+' rows');
