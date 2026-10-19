@@ -65,6 +65,20 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
   await page.waitForTimeout(1000);
   await page.screenshot({path:'visual-review/mobile-elements.png'});
  }
+ // Native-feeling scrolling is a contract: a 90px Chrome trackpad-like
+ // wheel event must cause 90px of C++ list movement, with no second
+ // multiplier or delayed easing.
+ if(name==='mobile'){
+   await page.mouse.move(180,650);
+   const start=await page.evaluate(()=>window.__imguiScrollTotal||0);
+   await page.mouse.wheel(0,90);
+   await page.waitForFunction(start=>(window.__imguiScrollTotal||0)>start+80,
+                              start,{timeout:6000});
+   await page.waitForTimeout(160);
+   const moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,start);
+   console.log('scroll-move',JSON.stringify({request:90,moved}));
+   if(Math.abs(moved-90)>1.2)failures.push('exact Chrome wheel delta: '+moved);
+ }
  await page.close();
 }
 try {
@@ -76,6 +90,29 @@ try {
  await capture('dpi150',1111,803,1.5,false);
  await capture('dpi133',1001,713,1.3333333333,false);
  await capture('dpi300',393,852,3,true);
+ // The public 'Liste' tab has 100,000 records; the C++ clipper should
+ // submit only the visible items and render immediately on a wheel delta.
+ const listPage=await browser.newPage({viewport:{width:390,height:844},
+                                      deviceScaleFactor:2,isMobile:true,hasTouch:true});
+ try{
+   await listPage.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
+   await listPage.waitForTimeout(2400);
+   await listPage.mouse.click(337,122);
+   await listPage.waitForFunction(()=>window.__imguiScroll?.rowsRendered>0,
+                                  {timeout:4500});
+   const before=await listPage.evaluate(()=>window.__imguiScrollTotal||0);
+   const visible=await listPage.evaluate(()=>window.__imguiScroll?.rowsRendered);
+   if(visible>55)failures.push('list virtualization submitted '+visible+' rows');
+   await listPage.mouse.move(180,580);
+   await listPage.mouse.wheel(0,117);
+   await listPage.waitForFunction(start=>(window.__imguiScrollTotal||0)>start+110,
+                                  before,{timeout:4500});
+   const movement=await listPage.evaluate(start=>(window.__imguiScrollTotal||0)-start,before);
+   if(Math.abs(movement-117)>1.2)failures.push('list precise wheel: '+movement);
+   await listPage.screenshot({path:'visual-review/virtual-list.png'});
+   console.log('virtual-list',JSON.stringify({total:100000,visible,movement}));
+ }finally{await listPage.close();}
+
  // Resize the same GL context: update size, actual buffer and viewport together.
  const resize=await browser.newPage({viewport:{width:801,height:601},deviceScaleFactor:1.25});
  try {
