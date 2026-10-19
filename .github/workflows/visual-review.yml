@@ -1,0 +1,28 @@
+name: Visual review (Chromium WebGL2)
+on:
+  push:
+    branches: [feature/visual-refresh]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.57.0
+      - run: npx playwright install --with-deps chromium
+      - name: Capture real WebGL2 rendering and daisyUI examples
+        run: node tests/visual_review.mjs
+        env:
+          DEMO_URL: https://christianhohlfeld.github.io/imgui-direct/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-review-screenshots
+          path: visual-review/
+          if-no-files-found: warn
