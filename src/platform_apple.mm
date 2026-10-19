@@ -162,7 +162,7 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
     // AppKit already generates momentum-phase scroll events with its native
     // acceleration. Forward scrollingDelta directly in logical points and
     // consume the event so the ImGui OSX backend cannot rescale it again.
-    __weak AppViewController* weakSelf=self;
+    AppViewController* __unsafe_unretained weakSelf=self;
     self.scrollMonitor=[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskScrollWheel
         handler:^NSEvent*(NSEvent* event) {
             AppViewController* controller=weakSelf;
