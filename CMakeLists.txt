@@ -1,0 +1,63 @@
+cmake_minimum_required(VERSION 3.21)
+project(imgui_direct LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+include(FetchContent)
+FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git
+  GIT_TAG c1aaac65e896a45f81f47a4d68f9959e0f86c859)
+FetchContent_MakeAvailable(imgui)
+set(IMGUI "${imgui_SOURCE_DIR}")
+add_library(imgui_core STATIC
+  "${IMGUI}/imgui.cpp" "${IMGUI}/imgui_draw.cpp"
+  "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
+  "${IMGUI}/imgui_demo.cpp")
+target_include_directories(imgui_core PUBLIC "${IMGUI}" "${IMGUI}/backends")
+if(EMSCRIPTEN)
+  add_executable(imgui_direct src/app.cpp src/platform_web.cpp
+    "${IMGUI}/backends/imgui_impl_opengl3.cpp")
+  target_compile_definitions(imgui_direct PRIVATE IMGUI_IMPL_OPENGL_ES3)
+  target_link_options(imgui_direct PRIVATE
+    "SHELL:-s WASM=1" "SHELL:-s MIN_WEBGL_VERSION=2"
+    "SHELL:-s MAX_WEBGL_VERSION=2" "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+    "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/shell.html")
+  set_target_properties(imgui_direct PROPERTIES OUTPUT_NAME index SUFFIX ".html")
+elseif(WIN32)
+  add_executable(imgui_direct src/app.cpp src/platform_win32.cpp
+    "${IMGUI}/backends/imgui_impl_win32.cpp"
+    "${IMGUI}/backends/imgui_impl_opengl3.cpp")
+  target_link_libraries(imgui_direct PRIVATE opengl32 user32 gdi32)
+elseif(APPLE)
+  enable_language(OBJCXX)
+  add_executable(imgui_direct MACOSX_BUNDLE src/app.cpp src/platform_apple.mm
+    "${IMGUI}/backends/imgui_impl_metal.mm")
+  if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set_target_properties(imgui_direct PROPERTIES
+      MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/ios/Info.plist"
+      XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
+      XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "15.0")
+    target_link_libraries(imgui_direct PRIVATE "-framework UIKit")
+  else()
+    target_sources(imgui_direct PRIVATE "${IMGUI}/backends/imgui_impl_osx.mm")
+    target_link_libraries(imgui_direct PRIVATE "-framework Cocoa" "-framework GameController")
+  endif()
+  target_link_libraries(imgui_direct PRIVATE "-framework Foundation" "-framework Metal" "-framework MetalKit" "-framework QuartzCore")
+elseif(ANDROID)
+  set(GLUE "${ANDROID_NDK}/sources/android/native_app_glue")
+  add_library(imgui_direct SHARED src/app.cpp src/platform_android.cpp
+    "${GLUE}/android_native_app_glue.c"
+    "${IMGUI}/backends/imgui_impl_android.cpp"
+    "${IMGUI}/backends/imgui_impl_opengl3.cpp")
+  target_include_directories(imgui_direct PRIVATE "${GLUE}")
+  target_compile_definitions(imgui_direct PRIVATE IMGUI_IMPL_OPENGL_ES3)
+  target_link_libraries(imgui_direct PRIVATE android log EGL GLESv3)
+elseif(UNIX)
+  find_package(X11 REQUIRED)
+  find_package(OpenGL REQUIRED)
+  add_executable(imgui_direct src/app.cpp src/platform_x11.cpp
+    "${IMGUI}/backends/imgui_impl_opengl3.cpp")
+  target_link_libraries(imgui_direct PRIVATE X11::X11 OpenGL::GL)
+else()
+  message(FATAL_ERROR "Unsupported platform")
+endif()
+target_link_libraries(imgui_direct PRIVATE imgui_core)
+target_include_directories(imgui_direct PRIVATE src)
