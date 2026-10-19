@@ -51,15 +51,18 @@ void Components(bool compact) {
     const float total=ImGui::GetContentRegionAvail().x;
     const bool columns=!compact && total>780.f;
     if(columns)ImGui::Columns(2,"##component-columns",false);
-    if(ui::BeginCard("##actions",330.f*ui::scale())) {
+    if(ui::BeginCard("##actions",(compact?410.f:330.f)*ui::scale())) {
         ui::Heading("Actions");
         ui::Muted("Primary, secondary, outline, ghost and destructive.");
         if(ui::Button("Primary action",ui::Variant::Primary))++s.clicks;
-        ImGui::SameLine();ui::Button("Secondary",ui::Variant::Secondary);
+        if(!compact)ImGui::SameLine();
+        ui::Button("Secondary",ui::Variant::Secondary);
         ui::Button("Outline",ui::Variant::Outline);
-        ImGui::SameLine();ui::Button("Ghost",ui::Variant::Ghost);
+        if(!compact)ImGui::SameLine();
+        ui::Button("Ghost",ui::Variant::Ghost);
         ui::Button("Delete",ui::Variant::Error);
-        ImGui::SameLine();ui::Button("Disabled",ui::Variant::Neutral,{0,0},false);
+        if(!compact)ImGui::SameLine();
+        ui::Button("Disabled",ui::Variant::Neutral,{0,0},false);
         ImGui::Text("Clicked: %d",s.clicks);
         ui::Badge("Ready",ui::Status::Success);
         ImGui::SameLine();ui::Badge("Notice",ui::Status::Warning);
@@ -67,7 +70,7 @@ void Components(bool compact) {
     ui::EndCard();
     if(columns)ImGui::NextColumn();
     else ImGui::Spacing();
-    if(ui::BeginCard("##fields",330.f*ui::scale())) {
+    if(ui::BeginCard("##fields",(compact?390.f:330.f)*ui::scale())) {
         ui::Heading("Inputs");
         ui::Muted("Keyboard, clipboard, touch and hardware keys.");
         if(requestTextFocus){ImGui::SetKeyboardFocusHere();requestTextFocus=false;}
@@ -142,8 +145,9 @@ void app::draw() {
     ui::Muted("Native C++ components");
     ImGui::Spacing();
     // Deliberately keep the appearance switch reachable with one hand on phones.
-    const char* names[]={"Overview","Components","Theme"};
-    ui::Tabs("main-tabs",names,3,&s.tab);
+    const char* desktopNames[]={"Overview","Components","Theme"};
+    const char* mobileNames[]={"Home","UI","Theme"};
+    ui::Tabs("main-tabs",compact?mobileNames:desktopNames,3,&s.tab);
     ui::Divider();
     if(s.tab==0) Overview(compact);
     else if(s.tab==1) Components(compact);
