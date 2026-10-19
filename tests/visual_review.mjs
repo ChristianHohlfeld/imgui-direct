@@ -59,6 +59,32 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  // Exact native devicePixelContentBox when trustworthy; the fallback is
  // necessary on browsers/emulators which report CSS units from the observer.
  if(!state.metrics?.exact)console.log(name+' fallback: '+state.metrics?.source);
+ // A button must respond to a real mobile touch tap and reject a swipe
+ // that began over the same button. This probes the *full* browser -> touch
+ // controller -> ImGui -> C++ component chain.
+ if(name==='mobile'){
+   await page.waitForFunction(()=>window.__imguiUIState?.page===0,null,{timeout:6000});
+   const first=await page.evaluate(()=>window.__imguiUIState.clicks);
+   await page.touchscreen.tap(105,374); // primary button, CSS-pixel coordinates
+   await page.waitForFunction(initial=>window.__imguiUIState?.clicks===initial+1,
+                              first,{timeout:4000});
+   const clicked=await page.evaluate(()=>window.__imguiUIState.clicks);
+   const session=await page.context().newCDPSession(page);
+   try {
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchStart',touchPoints:[{x:105,y:374}]});
+     await page.waitForTimeout(75);
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchMove',touchPoints:[{x:105,y:294}]});
+     await page.waitForTimeout(100);
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchEnd',touchPoints:[]});
+     await page.waitForTimeout(160);
+     const end=await page.evaluate(()=>window.__imguiUIState.clicks);
+     if(end!==clicked)failures.push('swipe incorrectly clicked native button');
+     console.log('touch-button',JSON.stringify({tap:clicked-first,swipeClicks:end-clicked}));
+   } finally {await session.detach();}
+ }
  // Assert the DOM event's actual CSS delta, not Playwright's requested
  // PHYSICAL wheel distance (the two differ under simulated DPR > 1).
  if(name==='mobile'){
