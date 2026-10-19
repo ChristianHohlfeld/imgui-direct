@@ -108,4 +108,8 @@ if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME ST
   target_include_directories(ui_component_test PRIVATE src)
   target_link_libraries(ui_component_test PRIVATE ui_foundation)
   add_test(NAME ui_component_states COMMAND ui_component_test)
+  add_executable(scroll_test tests/scroll_test.cpp)
+  target_include_directories(scroll_test PRIVATE src)
+  target_link_libraries(scroll_test PRIVATE imgui_core)
+  add_test(NAME scroll_pixel_pipeline COMMAND scroll_test)
 endif()

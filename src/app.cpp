@@ -1,9 +1,11 @@
 #include "app.hpp"
 #include "ui/components.hpp"
 #include "ui/theme.hpp"
+#include "ui/scroll.hpp"
 #include "imgui.h"
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
 
 #ifdef __EMSCRIPTEN__
 extern "C" void browser_input_rect(float,float,float,float);
@@ -11,7 +13,7 @@ extern "C" void browser_input_rect(float,float,float,float);
 
 namespace {
 struct Demo {
-    int page=0, choice=0, plan=1, clicks=0;
+    int page=0, choice=0, plan=1, clicks=0, listSelected=-1;
     bool dark=false, notify=true, agreed=true, invalid=false, modal=false;
     float volume=.65f, progress=.72f;
     char name[128]="Alex Morgan";
@@ -137,6 +139,36 @@ void sample(bool narrow){
     }
     ui::EndCard();
 }
+void virtual_list(){
+    introduction("Einträge","Direkt scrollen. Auch mit sehr langen Listen.");
+    if(ui::BeginCard("##list-card")){
+        ui::Muted("100.000 Einträge. Nur sichtbare Zeilen werden aufgebaut.");
+        space(3);
+        const float listHeight=std::max(220.f,ImGui::GetContentRegionAvail().y-22.f);
+        ImGui::BeginChild("##virtual-list",{0,listHeight},ImGuiChildFlags_Borders);
+        constexpr int count=100000;
+        const float row=ui::control_height(ui::Size::MD)+4.f;
+        ImGuiListClipper clipper;
+        clipper.Begin(count,row);
+        while(clipper.Step()){
+            for(int i=clipper.DisplayStart;i<clipper.DisplayEnd;++i){
+                char label[80];
+                std::snprintf(label,sizeof(label),"Eintrag %06d",i+1);
+                ImGui::PushID(i);
+                if(ImGui::Selectable(label,d.listSelected==i,0,
+                                     {0,row-ImGui::GetStyle().ItemSpacing.y}))
+                    d.listSelected=i;
+                ImGui::PopID();
+                ++ui::scroll::state().rowsDrawn;
+            }
+        }
+        // Inner list takes scroll first. Any remaining delta at the end of
+        // the list can be passed to the parent window at its scroll edge.
+        ui::scroll::apply();
+        ImGui::EndChild();
+    }
+    ui::EndCard();
+}
 void theme(bool narrow){
     introduction("Erscheinungsbild","Eine gemeinsame Palette für jedes Element.");
     if(ui::BeginCard("##theme")){
@@ -169,6 +201,7 @@ void app::request_text_focus(){focusInput=true;d.page=1;}
 void app::zoom(float ratio){ui::zoom(ratio);}
 void app::draw(){
     ui::begin_frame();
+    ui::scroll::begin_frame();
     auto& io=ImGui::GetIO();
     if(io.DisplaySize.x<=0||io.DisplaySize.y<=0)return;
     const bool narrow=io.DisplaySize.x<760.f;
@@ -184,8 +217,8 @@ void app::draw(){
     ui::Title("Komponenten");
     ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
     space(8);
-    const char* tabs[]={"Buttons","Formulare","Design"};
-    ui::Tabs("##gallery-nav",tabs,3,&d.page);
+    const char* tabs[]={"Buttons","Formulare","Design","Liste"};
+    ui::Tabs("##gallery-nav",tabs,4,&d.page);
     space(9);
     if(d.page==0){
         introduction("Grundelemente","Alles, was eine klare Oberfläche braucht.");
@@ -205,7 +238,8 @@ void app::draw(){
         if(columns)ImGui::NextColumn();else space(10);
         choices();
         if(columns)ImGui::Columns(1);
-    }else theme(narrow);
+    }else if(d.page==2)theme(narrow);
+    else virtual_list();
 #ifdef __EMSCRIPTEN__
     if(d.page!=1)browser_input_rect(0,0,0,0);
 #endif
@@ -218,5 +252,7 @@ void app::draw(){
             ImGui::CloseCurrentPopup();
         ui::EndModal();
     }
+    ui::scroll::apply();
+    ui::scroll::end_frame();
     ImGui::End();
 }

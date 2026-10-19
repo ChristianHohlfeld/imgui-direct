@@ -119,3 +119,18 @@ That fallback cannot guarantee compositor-perfect snapping under fractional
 DPR, and the operating system/browser can still apply display transforms.
 No canvas-based renderer can promise identical text hinting/subpixel-AA to
 native DOM text across all display pipelines.
+
+## Scrolling and 100k-row lists
+
+Native trackpad/wheel **pixel events are applied directly to the intended
+scrollable ImGui viewport** (no multiply-by-font-size wheel conversion, no
+extra smoothing or second momentum). DOM `deltaMode` explicitly handles
+pixels/lines/pages. AppKit precise scroll events and macOS native momentum
+phases are used as-is; only touch-finger flicks get a single, frame-rate-
+invariant exponential release curve. The same `src/ui/scroll.hpp` provides
+pixel accumulation, nested scroll chaining, and tests.
+
+`Liste` in the gallery demonstrates `ImGuiListClipper` over 100,000 rows.
+The app submits only visible rows; the list is not an infinite network feed,
+but shows how endless or paginated data can remain constant-cost per frame.
+A real device and trackpad are required to compare subjective OS kinetics.

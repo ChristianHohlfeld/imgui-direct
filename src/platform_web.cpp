@@ -138,6 +138,7 @@ void frame() {
         window.__imguiScroll = {
             appliedX:$0, appliedY:$1, rowsRendered:$2, time:performance.now()
         };
+        window.__imguiScrollTotal=(window.__imguiScrollTotal||0)+$1;
     }, ui::scroll::state().appliedX, ui::scroll::state().appliedY,
        ui::scroll::state().rowsDrawn);
     const auto background=ui::palette().base100;
