@@ -26,9 +26,13 @@ EM_JS(void, updateNativeTextRect,(float x,float y,float width,float height,int v
     } else if(document.activeElement===e) e.blur();
 });
 
-EM_JS(void, report_scroll, (float x,float y,int rows), {
+EM_JS(void, report_scroll, (float x,float y,int rows,float pending,float mx,float my,float maxY,float posY,int inside,int packets), {
     window.__imguiScroll={appliedX:x, appliedY:y, rowsRendered:rows, time:performance.now()};
     window.__imguiScrollTotal=(window.__imguiScrollTotal||0)+y;
+    window.__imguiScrollDebug={pending,mx,my,maxY,posY,inside,packets};
+});
+EM_JS(void, diagnostic_wheel, (float x,float y,float mouseX,float mouseY,int mode), {
+    window.__imguiRawWheel={x,y,mouseX,mouseY,mode,received:(window.__imguiRawWheel?.received||0)+1};
 });
 
 ImGuiKey mapkey(const char* k) {
@@ -140,7 +144,11 @@ void frame() {
     ImGui::NewFrame(); app::draw(); ImGui::Render();
     // Observable in browser QA; no DOM UI and no per-event allocations.
     report_scroll(ui::scroll::state().appliedX, ui::scroll::state().appliedY,
-                  ui::scroll::state().rowsDrawn);
+                  ui::scroll::state().rowsDrawn, ui::scroll::state().dy,
+                  ui::scroll::state().lastPointerX,ui::scroll::state().lastPointerY,
+                  ui::scroll::state().lastMaxY,ui::scroll::state().lastScrollY,
+                  ui::scroll::state().lastInside?1:0,
+                  (int)ui::scroll::state().packets);
     const auto background=ui::palette().base100;
     glViewport(0,0,fw,fh);
     glClearColor(background.r,background.g,background.b,1);

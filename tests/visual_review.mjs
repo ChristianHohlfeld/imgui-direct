@@ -62,8 +62,20 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
    await page.mouse.move(180,650);
    const start=await page.evaluate(()=>window.__imguiScrollTotal||0);
    await page.mouse.wheel(0,90);
-   await page.waitForFunction(start=>(window.__imguiScrollTotal||0)>start+80,
-                              start,{timeout:6000});
+   try {
+     await page.waitForFunction(start=>(window.__imguiScrollTotal||0)>start+80,
+                                start,{timeout:6000});
+   } catch(error) {
+     const details=await page.evaluate(()=>({
+       wheel:window.__imguiRawWheel,
+       scroll:window.__imguiScroll,
+       totals:window.__imguiScrollTotal,
+       debug:window.__imguiScrollDebug,
+       canvas:document.getElementById('canvas')?.getBoundingClientRect().toJSON()
+     }));
+     console.log('SCROLL DEBUG',JSON.stringify(details));
+     throw error;
+   }
    await page.waitForTimeout(160);
    const moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,start);
    console.log('scroll-move',JSON.stringify({request:90,moved}));

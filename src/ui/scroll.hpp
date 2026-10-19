@@ -16,7 +16,11 @@ struct Buffer {
     float dx=0,dy=0,appliedX=0,appliedY=0;
     int rowsDrawn=0;
     bool activeDrag=false;
+    unsigned packets=0, targetChecks=0;
+    float lastPointerX=0,lastPointerY=0,lastMaxY=0,lastScrollY=0;
+    bool lastInside=false;
     void add(float right,float down){
+        ++packets;
         if(std::isfinite(right))dx=std::clamp(dx+right,-20000.f,20000.f);
         if(std::isfinite(down))dy=std::clamp(dy+down,-20000.f,20000.f);
     }
@@ -43,11 +47,14 @@ inline void apply(){
     const ImVec2 pointer=ImGui::GetMousePos();
     const ImVec2 origin=ImGui::GetWindowPos();
     const ImVec2 dimensions=ImGui::GetWindowSize();
-    if(!std::isfinite(pointer.x)||!std::isfinite(pointer.y)||
-       pointer.x<origin.x||pointer.y<origin.y||
-       pointer.x>=origin.x+dimensions.x||pointer.y>=origin.y+dimensions.y)
-        return;
+    const bool inside=std::isfinite(pointer.x)&&std::isfinite(pointer.y)&&
+       pointer.x>=origin.x&&pointer.y>=origin.y&&
+       pointer.x<origin.x+dimensions.x&&pointer.y<origin.y+dimensions.y;
     auto& q=state();
+    q.lastPointerX=pointer.x;q.lastPointerY=pointer.y;
+    q.lastMaxY=ImGui::GetScrollMaxY();q.lastScrollY=ImGui::GetScrollY();
+    q.lastInside=inside;++q.targetChecks;
+    if(!inside)return;
     if(q.dy!=0.f && ImGui::GetScrollMaxY()>0.f){
         const float current=ImGui::GetScrollY();
         const float desired=std::clamp(current+q.dy,0.f,ImGui::GetScrollMaxY());
