@@ -1,61 +1,83 @@
-# Dear ImGui / direct UI foundation
+# UI Components · Native C++ / Dear ImGui
 
-**Fixed GUI core:** Dear ImGui 1.93.0. No SDL, Flutter, React, Sokol, web frontend or extra runtime library.
+A compact, reusable native component library, **inspired by daisyUI**, with no CSS,
+DOM, browser UI, new GUI engine, or external dependencies beyond Dear ImGui.
 
-## Principles
+## Surface
 
-The smallest useful UI system needs one source for colors, typography and density,
-then a handful of compositions. Components only accept user state as inputs and
-return whether it changed. No parallel widget state machine.
+| Component | API | Built-in interaction |
+|---|---|---|
+| Button | `ui::Button(label, Options)` | default, hover, pressed, focused, selected, disabled, loading; keyboard/touch |
+| Tabs | `ui::Tabs(...)` | selected, hover, focus; thumb-friendly targets |
+| Input | `ui::Input(..., Field)` | hover, focus, read-only, disabled, invalid, required, help |
+| Textarea | `ui::Textarea(..., Field)` | multiline, keyboard/IME, focus, invalid |
+| Select | `ui::Select(..., Field)` | selected, disabled, read-only, keyboard |
+| Checkbox | `ui::Checkbox(..., Field)` | checked, unchecked, focus, disabled |
+| Radio | `ui::Radio(..., Field)` | single selected option, focus, disabled |
+| Switch | `ui::Switch(..., Field)` | on/off, focus, disabled, touch |
+| Slider | `ui::Slider(..., Field)` | dragging, keyboard, hover, disabled |
+| Progress | `ui::Progress(...)` | semantic progress/status |
+| Badge / Alert | `ui::Badge`, `ui::Alert` | semantic info, success, warning, error |
+| Card / Modal | `ui::BeginCard`, `ui::BeginModal` | nested content, centered dialog |
+| Heading / Muted / Divider / Tooltip | corresponding methods | shared typography and feedback |
 
-* **Theme tokens**: `base100`, `base200`, `base300`, `baseContent`,
-  `primary`, `primaryContent`, `secondary`, `secondaryContent`,
-  `neutral`, `neutralContent`, `info`, `success`, `warning`, `error`.
-* **Built-in looks**: `slateDark` and `slateLight` with the same semantic roles.
-* **Theme API**: `ui::set_mode(ui::Mode::Light)`, `ui::set_mode(ui::Mode::Dark)`,
-  or `ui::set_custom_palette(myPalette, darkBase)`.
-* **Components**: `ui::Heading`, `Muted`, `Divider`, `Badge`, `Alert`,
-  `Button`, `Input`, `Checkbox`, `Switch`, `Slider`, `Tabs`,
-  `BeginCard`/`EndCard`.
-* **State**: user-owned C++ variables. No CSS and no extra framework.
-* **Inputs**: built on ImGui buttons, sliders and inputs for focus/keyboard
-  accessibility within Dear ImGui's capabilities.
-* **Mobile**: touch-aware default dimensions. `app::set_touch` and
-  `ui::set_scale` are the only density controls; iOS uses logical points,
-  Android reads physical screen density, and the browser uses CSS pixels.
+**Styles:** primary, secondary, neutral, outline, ghost, soft, info,
+success, warning, error. **Sizes:** XS, SM, MD, LG, XL.
+**States:** disabled, loading, selected, invalid, readOnly and native input
+states hover, active/held and keyboard focus.
 
-## Example
+Button example:
 
 ```cpp
 #include "ui/components.hpp"
-ui::set_mode(ui::Mode::Dark);
-bool enabled = true;
-char name[128] = {};
-if (ui::BeginCard("settings", 240.f)) {
-    ui::Heading("Settings");
-    ui::Input("Name", name, sizeof(name), "Your name");
-    ui::Switch("Enabled", &enabled);
-    if (ui::Button("Save", ui::Variant::Primary)) {
-        // Commit the user's own data, no state hidden in the UI library.
-    }
-}
-ui::EndCard();
+ui::Options action;
+action.variant=ui::Variant::Primary;
+action.size=ui::Size::LG;
+action.fullWidth=true;
+action.state.loading=busy;
+if(ui::Button("Speichern", action) && !busy) save();
 ```
 
-Call `ui::initialize()` after `ImGui::CreateContext()`. Style changes are
-global. A theme is a tiny `Palette` value: alter the tokens instead of
-manually styling every button. First-party ImGui platform backends stay intact.
+Field example:
 
-## Scope
+```cpp
+char name[128] = {};
+ui::Field f;
+f.required = true;
+f.invalid = invalidName;
+f.help = invalidName ? "Bitte Namen eingeben" : nullptr;
+ui::Input("Name",name,sizeof(name),"Name",f);
+```
 
-This is a first-principles component foundation, not daisyUI itself.
-Modal dialogs, combo boxes, full accessibility trees, data tables, virtualization,
-cross-platform IME completeness and platform-specific navigation can be added
-based on real needs instead of prematurely creating a big framework.
+## Themes
 
-## Tests
+One palette of semantic tokens. Built-in `Slate Dark` and `Slate Light`
+share component definitions. Custom themes are data, not another stylesheet:
 
-`ui_theme_test` checks the palette structure in pure C++ at compile time.
-Existing gesture and Unicode tests remain. CI builds Windows, Linux, macOS,
-Android ARM64, iOS simulator and WebAssembly. Real-device quality remains
-a separate acceptance step.
+```cpp
+ui::Palette custom = ui::slateLight;
+custom.primary = ui::hex(0x7C3AED);
+ui::set_custom_palette(custom,false);
+```
+
+Themes update on the next frame boundary to preserve ImGui's style stack.
+Use `ui::set_touch(true)` once in the OS input adapter; `Size::XS` still
+has at least 44 logical points of touch height, `Size::MD` at least 48.
+Android reads the display density, iOS uses UIKit logical points, and
+WASM uses browser CSS pixels. Pinch zoom scales the same theme metrics.
+
+Keyboard navigation and focus come from ImGui's native input system, not a
+second event loop. Touch can activate every actionable component without
+hover; hover is a *mouse/trackpad enhancement* only. This does **not** claim
+native iOS VoiceOver / Android TalkBack accessibility semantics: canvas-backed
+Dear ImGui does not provide an OS accessibility tree out of the box.
+
+## Demonstration
+
+The application now shows a calm, product-like interface with
+`Übersicht`, `Elemente` and `Design`. No built-in ImGui example windows,
+FPS counters, graphics-debug panels, backend badges, or technical UI text.
+
+CI validates the theme/state dimensions plus the existing touch/Unicode suite
+on native targets and compiles browser WebGL2/WASM and Android APK builds.
+Actual hardware acceptance remains separately necessary.
