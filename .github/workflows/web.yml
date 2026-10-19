@@ -9,11 +9,13 @@ permissions:
   id-token: write
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
+  # A fresh main push supersedes a deploy stuck during a GitHub Pages outage.
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: emscripten-core/setup-emsdk@v15
@@ -37,6 +39,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
