@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "touch_imgui.hpp"
+#include "ui/scroll.hpp"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -67,6 +68,7 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 
 #if TARGET_OS_OSX
 @interface AppViewController () <MTKViewDelegate>
+@property (nonatomic, strong) id scrollMonitor;
 #else
 @interface AppViewController () <MTKViewDelegate, UITextViewDelegate>
 @property (nonatomic, strong) DirectTextView *keyboardSink;
@@ -157,6 +159,22 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 
 #if TARGET_OS_OSX
     ImGui_ImplOSX_Init(self.view);
+    // AppKit already generates momentum-phase scroll events with its native
+    // acceleration. Forward scrollingDelta directly in logical points and
+    // consume the event so the ImGui OSX backend cannot rescale it again.
+    __weak AppViewController* weakSelf=self;
+    self.scrollMonitor=[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskScrollWheel
+        handler:^NSEvent*(NSEvent* event) {
+            AppViewController* controller=weakSelf;
+            if(!controller || event.window!=controller.view.window)return event;
+            NSPoint local=[controller.view convertPoint:event.locationInWindow fromView:nil];
+            if(!NSPointInRect(local,controller.view.bounds))return event;
+            if(event.phase==NSEventPhaseCancelled)return nil;
+            const float step=event.hasPreciseScrollingDeltas?1.f:20.f;
+            ui::scroll::add((float)-event.scrollingDeltaX*step,
+                            (float)-event.scrollingDeltaY*step);
+            return nil;
+        }];
     [NSApp activateIgnoringOtherApps:YES];
 #else
     gController=self;
@@ -319,8 +337,7 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
        recognizer.state==UIGestureRecognizerStateChanged) {
         CGPoint translation=[recognizer translationInView:self.view];
         if(translation.x!=0 || translation.y!=0) {
-            ImGui::GetIO().AddMouseWheelEvent(
-                (float)-translation.x/60.f,(float)-translation.y/60.f);
+            ui::scroll::add((float)-translation.x,(float)-translation.y);
             [recognizer setTranslation:CGPointZero inView:self.view];
         }
     }
@@ -356,6 +373,9 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
     ImGui::GetIO().AddFocusEvent(true);
 }
 -(void)dealloc {
+#if TARGET_OS_OSX
+    if(self.scrollMonitor)[NSEvent removeMonitor:self.scrollMonitor];
+#endif
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     if(gController==self)gController=nil;
 }

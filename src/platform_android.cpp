@@ -1,4 +1,5 @@
 #include "touch_imgui.hpp"
+#include "ui/scroll.hpp"
 #include "ui/theme.hpp"
 #include <android/configuration.h>
 #include "utf.hpp"
@@ -166,6 +167,12 @@ int32_t input(android_app*,AInputEvent* e) {
     if(!ready)return 0;
     if(AInputEvent_getType(e)==AINPUT_EVENT_TYPE_MOTION) {
         int source=AInputEvent_getSource(e);
+        if((AMotionEvent_getAction(e)&AMOTION_EVENT_ACTION_MASK)==AMOTION_EVENT_ACTION_SCROLL) {
+            const float hx=AMotionEvent_getAxisValue(e,AMOTION_EVENT_AXIS_HSCROLL,0);
+            const float vy=AMotionEvent_getAxisValue(e,AMOTION_EVENT_AXIS_VSCROLL,0);
+            ui::scroll::add(-hx*48.f,-vy*48.f);
+            return 1;
+        }
         if((source & AINPUT_SOURCE_TOUCHSCREEN)==AINPUT_SOURCE_TOUCHSCREEN) {
             const int action=AMotionEvent_getAction(e);
             const int kind=action&AMOTION_EVENT_ACTION_MASK;

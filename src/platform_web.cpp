@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "ui/theme.hpp"
+#include "ui/scroll.hpp"
 #include "touch_imgui.hpp"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
@@ -8,6 +9,7 @@
 #include <GLES3/gl3.h>
 #include <algorithm>
 #include <cstring>
+#include <cmath>
 namespace {
 double previous=0;
 double lastTouch=-10000.;
@@ -66,8 +68,20 @@ EM_BOOL mousecb(int kind,const EmscriptenMouseEvent* e,void*) {
     return io.WantCaptureMouse;
 }
 EM_BOOL wheelcb(int,const EmscriptenWheelEvent* e,void*) {
-    float scale=e->deltaMode==DOM_DELTA_PIXEL?.01f:1.f;
-    ImGui::GetIO().AddMouseWheelEvent((float)-e->deltaX*scale,(float)-e->deltaY*scale);
+    // DOM deltas are pixels, lines or pages. Deliver precise pixel events
+    // 1:1. Chrome/macOS already send momentum in subsequent wheel events:
+    // smoothing or adding another inertia engine here creates lag.
+    const auto unit=e->deltaMode==DOM_DELTA_LINE?ui::scroll::Unit::Line:
+                    e->deltaMode==DOM_DELTA_PAGE?ui::scroll::Unit::Page:
+                    ui::scroll::Unit::Pixel;
+    const float page=std::max(200.f,ImGui::GetIO().DisplaySize.y*.90f);
+    if(e->mouse.ctrlKey) {
+        // Browser trackpad pinch is exposed as Ctrl+wheel.
+        app::zoom(std::exp(-(float)e->deltaY*.001f));
+    } else {
+        ImGui::GetIO().AddMousePosEvent((float)e->mouse.targetX,(float)e->mouse.targetY);
+        ui::scroll::add_wheel((float)e->deltaX,(float)e->deltaY,unit,20.f,page);
+    }
     return EM_TRUE;
 }
 EM_BOOL touchcb(int kind,const EmscriptenTouchEvent* e,void*) {
@@ -119,6 +133,13 @@ void frame() {
     touch::dispatch(gestures.tick(now/1000.));
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame(); app::draw(); ImGui::Render();
+    // Observable in browser QA; no DOM UI and no per-event allocations.
+    EM_ASM({
+        window.__imguiScroll = {
+            appliedX:$0, appliedY:$1, rowsRendered:$2, time:performance.now()
+        };
+    }, ui::scroll::state().appliedX, ui::scroll::state().appliedY,
+       ui::scroll::state().rowsDrawn);
     const auto background=ui::palette().base100;
     glViewport(0,0,fw,fh);
     glClearColor(background.r,background.g,background.b,1);

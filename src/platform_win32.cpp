@@ -1,4 +1,6 @@
 #include "app.hpp"
+#include "ui/scroll.hpp"
+#include "ui/theme.hpp"
 #include "ui/theme.hpp"
 // Dear ImGui: standalone example application for Windows API + OpenGL
 
@@ -284,6 +286,18 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if(msg==WM_MOUSEWHEEL || msg==WM_MOUSEHWHEEL) {
+        const float notches=(float)GET_WHEEL_DELTA_WPARAM(wParam)/WHEEL_DELTA;
+        UINT lines=3;
+        ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES,0,&lines,0);
+        RECT r{};::GetClientRect(hWnd,&r);
+        const float distance=lines==WHEEL_PAGESCROLL
+            ?(float)(r.bottom-r.top)*.9f
+            :(float)lines*20.f*ui::scale();
+        if(msg==WM_MOUSEWHEEL)ui::scroll::add(0.f,-notches*distance);
+        else ui::scroll::add(notches*distance,0.f);
+        return 0; // Prevent ImGui's second wheel multiplier.
+    }
     // Alt+Enter is a window-manager shortcut, never a widget action.
     // Bit 29: Alt is held; bit 30: key auto-repeat. Ignore repeats.
     if (msg == WM_SYSKEYDOWN && wParam == VK_RETURN && (lParam & (1L << 29)))
