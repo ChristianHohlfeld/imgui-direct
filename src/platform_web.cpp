@@ -26,6 +26,11 @@ EM_JS(void, updateNativeTextRect,(float x,float y,float width,float height,int v
     } else if(document.activeElement===e) e.blur();
 });
 
+EM_JS(void, report_scroll, (float x,float y,int rows), {
+    window.__imguiScroll={appliedX:x, appliedY:y, rowsRendered:rows, time:performance.now()};
+    window.__imguiScrollTotal=(window.__imguiScrollTotal||0)+y;
+});
+
 ImGuiKey mapkey(const char* k) {
     if(std::strncmp(k,"Key",3)==0 && std::strlen(k)==4 && k[3]>='A'&&k[3]<='Z') return (ImGuiKey)(ImGuiKey_A+k[3]-'A');
     if(std::strncmp(k,"Digit",5)==0 && std::strlen(k)==6 && k[5]>='0'&&k[5]<='9') return (ImGuiKey)(ImGuiKey_0+k[5]-'0');
@@ -134,13 +139,8 @@ void frame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame(); app::draw(); ImGui::Render();
     // Observable in browser QA; no DOM UI and no per-event allocations.
-    EM_ASM({
-        window.__imguiScroll = {
-            appliedX:$0, appliedY:$1, rowsRendered:$2, time:performance.now()
-        };
-        window.__imguiScrollTotal=(window.__imguiScrollTotal||0)+$1;
-    }, ui::scroll::state().appliedX, ui::scroll::state().appliedY,
-       ui::scroll::state().rowsDrawn);
+    report_scroll(ui::scroll::state().appliedX, ui::scroll::state().appliedY,
+                  ui::scroll::state().rowsDrawn);
     const auto background=ui::palette().base100;
     glViewport(0,0,fw,fh);
     glClearColor(background.r,background.g,background.b,1);
