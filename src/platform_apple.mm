@@ -1,4 +1,10 @@
 #include "app.hpp"
+#include "touch_imgui.hpp"
+#include <algorithm>
+#include <string>
+#include <vector>
+#include <cstdint>
+#include <cfloat>
 // Dear ImGui: standalone example application for OSX + Metal.
 
 // Learn about Dear ImGui:
@@ -13,6 +19,7 @@
 #import <Cocoa/Cocoa.h>
 #else
 #import <UIKit/UIKit.h>
+#import <QuartzCore/QuartzCore.h>
 #endif
 
 #import <Metal/Metal.h>
@@ -29,7 +36,45 @@
 @end
 #endif
 
+#if !TARGET_OS_OSX
+// Native UIKit IME bridge. The application UI still belongs entirely to ImGui/C++.
+@interface DirectTextView : UITextView
+@end
+@implementation DirectTextView
+- (void)deleteBackward {
+    if (self.text.length == 0 && !self.markedTextRange) {
+        auto& io=ImGui::GetIO();
+        io.AddKeyEvent(ImGuiKey_Backspace,true);
+        io.AddKeyEvent(ImGuiKey_Backspace,false);
+    } else {
+        [super deleteBackward];
+    }
+}
+@end
+static std::string gClipboard;
+static const char* GetClipboard(ImGuiContext*) {
+    NSString* value=[UIPasteboard generalPasteboard].string;
+    if(!value)return nullptr;
+    gClipboard=value.UTF8String ?: "";
+    return gClipboard.c_str();
+}
+static void SetClipboard(ImGuiContext*,const char* value) {
+    [UIPasteboard generalPasteboard].string=[NSString stringWithUTF8String:value ? value : ""];
+}
+static AppViewController* gController=nil;
+static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
+#endif
+
+#if TARGET_OS_OSX
 @interface AppViewController () <MTKViewDelegate>
+#else
+@interface AppViewController () <MTKViewDelegate, UITextViewDelegate>
+@property (nonatomic, strong) DirectTextView *keyboardSink;
+- (void)syncKeyboard:(BOOL)shouldShow;
+- (void)keyboardFrameChanged:(NSNotification *)notification;
+- (void)onHover:(UIHoverGestureRecognizer*)recognizer;
+- (void)onIndirectScroll:(UIPanGestureRecognizer*)recognizer;
+#endif
 @property (nonatomic, readonly) MTKView *mtkView;
 @property (nonatomic, strong) id <MTLDevice> device;
 @property (nonatomic, strong) id <MTLCommandQueue> commandQueue;
@@ -40,6 +85,11 @@
 //-----------------------------------------------------------------------------------
 
 @implementation AppViewController
+#if !TARGET_OS_OSX
+{
+    touch::Controller _touchController;
+}
+#endif
 
 -(instancetype)initWithNibName:(nullable NSString *)nibNameOrNil bundle:(nullable NSBundle *)nibBundleOrNil
 {
@@ -114,6 +164,39 @@
 #if TARGET_OS_OSX
     ImGui_ImplOSX_Init(self.view);
     [NSApp activateIgnoringOtherApps:YES];
+#else
+    gController=self;
+    app::set_touch(true);
+    auto& platform=ImGui::GetPlatformIO();
+    platform.Platform_GetClipboardTextFn=GetClipboard;
+    platform.Platform_SetClipboardTextFn=SetClipboard;
+    platform.Platform_SetImeDataFn=SetIme;
+
+    self.keyboardSink=[[DirectTextView alloc] initWithFrame:CGRectMake(1,1,2,2)];
+    self.keyboardSink.delegate=self;
+    self.keyboardSink.backgroundColor=[UIColor clearColor];
+    self.keyboardSink.alpha=.01;
+    self.keyboardSink.autocapitalizationType=UITextAutocapitalizationTypeNone;
+    self.keyboardSink.autocorrectionType=UITextAutocorrectionTypeNo;
+    self.keyboardSink.spellCheckingType=UITextSpellCheckingTypeNo;
+    self.keyboardSink.keyboardType=UIKeyboardTypeDefault;
+    self.keyboardSink.returnKeyType=UIReturnKeyDone;
+    self.keyboardSink.scrollEnabled=NO;
+    [self.view addSubview:self.keyboardSink];
+
+    UIHoverGestureRecognizer* hover=[[UIHoverGestureRecognizer alloc] initWithTarget:self action:@selector(onHover:)];
+    [self.view addGestureRecognizer:hover];
+
+    UIPanGestureRecognizer* indirect=[[UIPanGestureRecognizer alloc]
+        initWithTarget:self action:@selector(onIndirectScroll:)];
+    indirect.allowedScrollTypesMask=UIScrollTypeMaskAll;
+    indirect.allowedTouchTypes=@[]; // Only trackpad/wheel, never steal finger gestures.
+    indirect.cancelsTouchesInView=NO;
+    [self.view addGestureRecognizer:indirect];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardFrameChanged:)
+        name:UIKeyboardWillChangeFrameNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardFrameChanged:)
+        name:UIKeyboardWillHideNotification object:nil];
 #endif
 }
 
@@ -129,6 +212,11 @@
     CGFloat framebufferScale = view.window.screen.scale ?: UIScreen.mainScreen.scale;
 #endif
     io.DisplayFramebufferScale = ImVec2(framebufferScale, framebufferScale);
+#if !TARGET_OS_OSX
+    UIEdgeInsets safe=view.safeAreaInsets;
+    app::safe_area((float)safe.top,(float)safe.right,(float)safe.bottom,(float)safe.left);
+    touch::dispatch(_touchController.tick(CACurrentMediaTime()));
+#endif
 
     id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
 
@@ -193,39 +281,101 @@
 
 #else
 
-// This touch mapping is super cheesy/hacky. We treat any touch on the screen
-// as if it were a depressed left mouse button, and we don't bother handling
-// multitouch correctly at all. This causes the "cursor" to behave very erratically
-// when there are multiple active touches. But for demo purposes, single-touch
-// interaction actually works surprisingly well.
--(void)updateIOWithTouchEvent:(UIEvent *)event
+// Touch points are identified by UIKit's stable UITouch object identity.
+// Pencil remains a pen source; mouse/trackpad events are handled separately.
+-(void)updateIOWithTouchEvent:(UIEvent*)event
 {
-    UITouch *anyTouch = event.allTouches.anyObject;
-    CGPoint touchLocation = [anyTouch locationInView:self.view];
-    ImGuiIO &io = ImGui::GetIO();
-    io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
-    io.AddMousePosEvent(touchLocation.x, touchLocation.y);
+    std::vector<touch::Contact> points;
+    for(UITouch* t in event.allTouches) {
+        if(t.type==UITouchTypeIndirectPointer) {
+            CGPoint p=[t locationInView:self.view];
+            auto& io=ImGui::GetIO();
+            io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+            io.AddMousePosEvent((float)p.x,(float)p.y);
+            int button=(event.buttonMask&UIEventButtonMaskSecondary)?1:0;
+            io.AddMouseButtonEvent(button,
+                t.phase!=UITouchPhaseEnded&&t.phase!=UITouchPhaseCancelled);
+            continue;
+        }
+        if(t.phase==UITouchPhaseEnded||t.phase==UITouchPhaseCancelled) continue;
+        CGPoint p=[t locationInView:self.view];
+        points.push_back({(std::int64_t)(std::uintptr_t)(__bridge void*)t,
+            (float)p.x,(float)p.y,t.type==UITouchTypePencil});
+    }
+    std::sort(points.begin(),points.end(),[](const auto& a,const auto& b){return a.id<b.id;});
+    touch::dispatch(_touchController.update(points,CACurrentMediaTime(),!ImGui::IsAnyItemActive()));
+}
+-(void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
+-(void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
+-(void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
+-(void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
 
-    BOOL hasActiveTouch = NO;
-    for (UITouch *touch in event.allTouches)
-    {
-        if (touch.phase != UITouchPhaseEnded && touch.phase != UITouchPhaseCancelled)
-        {
-            hasActiveTouch = YES;
-            break;
+-(void)onHover:(UIHoverGestureRecognizer*)recognizer {
+    auto& io=ImGui::GetIO();
+    io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+    if(recognizer.state==UIGestureRecognizerStateEnded || recognizer.state==UIGestureRecognizerStateCancelled)
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);
+    else {
+        CGPoint p=[recognizer locationInView:self.view];
+        io.AddMousePosEvent((float)p.x,(float)p.y);
+    }
+}
+-(void)onIndirectScroll:(UIPanGestureRecognizer*)recognizer {
+    if(recognizer.state==UIGestureRecognizerStateBegan ||
+       recognizer.state==UIGestureRecognizerStateChanged) {
+        CGPoint translation=[recognizer translationInView:self.view];
+        if(translation.x!=0 || translation.y!=0) {
+            ImGui::GetIO().AddMouseWheelEvent(
+                (float)-translation.x/60.f,(float)-translation.y/60.f);
+            [recognizer setTranslation:CGPointZero inView:self.view];
         }
     }
-    io.AddMouseButtonEvent(0, hasActiveTouch);
 }
-
--(void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event      { [self updateIOWithTouchEvent:event]; }
--(void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event      { [self updateIOWithTouchEvent:event]; }
--(void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event  { [self updateIOWithTouchEvent:event]; }
--(void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event      { [self updateIOWithTouchEvent:event]; }
+-(void)syncKeyboard:(BOOL)show {
+    if(show && !self.keyboardSink.isFirstResponder)[self.keyboardSink becomeFirstResponder];
+    else if(!show && self.keyboardSink.isFirstResponder)[self.keyboardSink resignFirstResponder];
+}
+-(void)textViewDidChange:(UITextView*)view {
+    // Keep marked composition in UIKit until committed (accent/CJK/emoji).
+    if(view.markedTextRange)return;
+    NSString* text=view.text;
+    if(text.length) {
+        ImGui::GetIO().AddInputCharactersUTF8(text.UTF8String);
+        view.text=@"";
+    }
+}
+-(void)keyboardFrameChanged:(NSNotification*)note {
+    CGRect r=[note.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+    CGRect windowRect=[self.view convertRect:self.view.bounds toView:nil];
+    CGFloat intersection=CGRectGetHeight(CGRectIntersection(r,windowRect));
+    if([note.name isEqualToString:UIKeyboardWillHideNotification])intersection=0;
+    app::keyboard_height((float)std::max(0.0,(double)intersection));
+}
+-(void)viewDidDisappear:(BOOL)animated {
+    [super viewDidDisappear:animated];
+    _touchController.reset();
+    ImGui::GetIO().AddFocusEvent(false);
+    [self.keyboardSink resignFirstResponder];
+}
+-(void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    ImGui::GetIO().AddFocusEvent(true);
+}
+-(void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    if(gController==self)gController=nil;
+}
 
 #endif
 
 @end
+
+#if !TARGET_OS_OSX
+static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data)
+{
+    if(gController)[gController syncKeyboard:data->WantTextInput];
+}
+#endif
 
 //-----------------------------------------------------------------------------------
 // AppDelegate

@@ -19,7 +19,9 @@ if(EMSCRIPTEN)
   target_link_options(imgui_direct PRIVATE
     "SHELL:-s WASM=1" "SHELL:-s MIN_WEBGL_VERSION=2"
     "SHELL:-s MAX_WEBGL_VERSION=2" "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-    "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/shell.html")
+    "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/shell.html"
+    "SHELL:-s EXPORTED_FUNCTIONS=_main,_mobile_insert_utf8,_mobile_backspace,_mobile_focus"
+    "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall")
   set_target_properties(imgui_direct PROPERTIES OUTPUT_NAME index SUFFIX ".html")
 elseif(WIN32)
   # Windows GUI subsystem: no console window, while retaining direct Win32/WGL.
@@ -41,7 +43,7 @@ elseif(APPLE)
     target_sources(imgui_direct PRIVATE "${IMGUI}/backends/imgui_impl_osx.mm")
     target_link_libraries(imgui_direct PRIVATE "-framework Cocoa" "-framework GameController")
   endif()
-  target_link_libraries(imgui_direct PRIVATE "-framework Foundation" "-framework Metal" "-framework MetalKit" "-framework QuartzCore")
+  target_link_libraries(imgui_direct PRIVATE "-framework Foundation" "-framework Metal" "-framework MetalKit" "-framework QuartzCore" "-framework CoreGraphics")
 elseif(ANDROID)
   set(GLUE "${ANDROID_NDK}/sources/android/native_app_glue")
   add_library(imgui_direct SHARED src/app.cpp src/platform_android.cpp
@@ -62,3 +64,14 @@ else()
 endif()
 target_link_libraries(imgui_direct PRIVATE imgui_core)
 target_include_directories(imgui_direct PRIVATE src)
+
+# Pure C++ deterministic touch tests (no test framework or new dependencies).
+include(CTest)
+if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  add_executable(touch_test tests/touch_test.cpp)
+  target_include_directories(touch_test PRIVATE src)
+  add_test(NAME touch_gestures COMMAND touch_test)
+  add_executable(utf_test tests/utf_test.cpp)
+  target_include_directories(utf_test PRIVATE src)
+  add_test(NAME unicode_roundtrip COMMAND utf_test)
+endif()
