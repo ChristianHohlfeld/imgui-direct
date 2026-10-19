@@ -43,7 +43,7 @@ elseif(APPLE)
     target_sources(imgui_direct PRIVATE "${IMGUI}/backends/imgui_impl_osx.mm")
     target_link_libraries(imgui_direct PRIVATE "-framework Cocoa" "-framework GameController")
   endif()
-  target_link_libraries(imgui_direct PRIVATE "-framework Foundation" "-framework Metal" "-framework MetalKit" "-framework QuartzCore")
+  target_link_libraries(imgui_direct PRIVATE "-framework Foundation" "-framework Metal" "-framework MetalKit" "-framework QuartzCore" "-framework CoreGraphics")
 elseif(ANDROID)
   set(GLUE "${ANDROID_NDK}/sources/android/native_app_glue")
   add_library(imgui_direct SHARED src/app.cpp src/platform_android.cpp
