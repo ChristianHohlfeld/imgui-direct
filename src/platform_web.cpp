@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "ui/theme.hpp"
 #include "touch_imgui.hpp"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
@@ -98,7 +99,10 @@ void frame() {
     touch::dispatch(gestures.tick(now/1000.));
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame(); app::draw(); ImGui::Render();
-    glViewport(0,0,fw,fh);glClearColor(.065f,.075f,.105f,1);glClear(GL_COLOR_BUFFER_BIT);
+    const auto background=ui::palette().base100;
+    glViewport(0,0,fw,fh);
+    glClearColor(background.r,background.g,background.b,1);
+    glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 }

@@ -23,12 +23,12 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  console.log(name,JSON.stringify({status:response?.status(),...state,errors}));
  if(!state.gl || (state.status && !state.status.includes('Loading')))failures.push(name+' '+JSON.stringify(state));
  if(name==='desktop') {
-  await page.mouse.click(730,125);
+  await page.mouse.click(730,136);
   await page.waitForTimeout(900);
   await page.screenshot({path:'visual-review/desktop-elements.png'});
  }
  if(name==='mobile') {
-  await page.touchscreen.tap(195,138);
+  await page.touchscreen.tap(195,132);
   await page.waitForTimeout(1000);
   await page.screenshot({path:'visual-review/mobile-elements.png'});
  }

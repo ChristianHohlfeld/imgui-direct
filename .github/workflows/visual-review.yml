@@ -16,10 +16,20 @@ jobs:
           node-version: '22'
       - run: npm install --no-save playwright@1.57.0
       - run: npx playwright install --with-deps chromium
-      - name: Capture real WebGL2 rendering and daisyUI examples
+      - uses: emscripten-core/setup-emsdk@v15
+        with:
+          version: '4.0.15'
+      - run: emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build-web --parallel 4
+      - name: Start local WebGL2 app
+        run: |
+          python3 -m http.server 8765 -d build-web > /tmp/visual-http.log 2>&1 &
+          sleep 2
+          curl --fail http://127.0.0.1:8765/index.html >/dev/null
+      - name: Capture candidate WebGL2 rendering and daisyUI examples
         run: node tests/visual_review.mjs
         env:
-          DEMO_URL: https://christianhohlfeld.github.io/imgui-direct/
+          DEMO_URL: http://127.0.0.1:8765/index.html
       - uses: actions/upload-artifact@v4
         if: always()
         with:

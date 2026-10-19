@@ -92,7 +92,8 @@ void set_mode(Mode next) {
 void set_custom_palette(const Palette& custom,bool darkBase) {
     currentMode=Mode::Custom; active=custom;dark=darkBase;themeDirty=true;
 }
-void initialize(){currentMode=Mode::Dark;dark=true;active=slateDark;apply();}
+void initialize(){
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;currentMode=Mode::Dark;dark=true;active=slateDark;apply();}
 void begin_frame(){if(themeDirty)apply();}
 void set_touch(bool value){if(touch==value)return;touch=value;apply();}
 bool is_touch(){return touch;}
