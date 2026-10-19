@@ -12,6 +12,10 @@ add_library(imgui_core STATIC
   "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
   "${IMGUI}/imgui_demo.cpp")
 target_include_directories(imgui_core PUBLIC "${IMGUI}" "${IMGUI}/backends")
+# Project-owned UI library: semantic tokens and native Dear ImGui components.
+add_library(ui_foundation STATIC src/ui/theme.cpp src/ui/components.cpp)
+target_include_directories(ui_foundation PUBLIC "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(ui_foundation PUBLIC imgui_core)
 if(EMSCRIPTEN)
   add_executable(imgui_direct src/app.cpp src/platform_web.cpp
     "${IMGUI}/backends/imgui_impl_opengl3.cpp")
@@ -62,7 +66,7 @@ elseif(UNIX)
 else()
   message(FATAL_ERROR "Unsupported platform")
 endif()
-target_link_libraries(imgui_direct PRIVATE imgui_core)
+target_link_libraries(imgui_direct PRIVATE ui_foundation)
 target_include_directories(imgui_direct PRIVATE src)
 
 # Pure C++ deterministic touch tests (no test framework or new dependencies).
@@ -74,4 +78,7 @@ if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME ST
   add_executable(utf_test tests/utf_test.cpp)
   target_include_directories(utf_test PRIVATE src)
   add_test(NAME unicode_roundtrip COMMAND utf_test)
+  add_executable(ui_theme_test tests/ui_theme_test.cpp)
+  target_include_directories(ui_theme_test PRIVATE src)
+  add_test(NAME ui_palette COMMAND ui_theme_test)
 endif()

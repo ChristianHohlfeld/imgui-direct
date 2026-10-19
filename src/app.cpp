@@ -1,4 +1,6 @@
 #include "app.hpp"
+#include "ui/components.hpp"
+#include "ui/theme.hpp"
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
@@ -10,116 +12,149 @@ extern "C" void browser_input_rect(float,float,float,float);
 namespace {
 struct State {
     int tab=0, clicks=0;
-    bool animate=true, metrics=false, official=false;
-    float amplitude=.70f, speed=1.0f, phase=0.f;
+    bool animate=true, metrics=false, official=false, notifications=true;
+    bool newsletter=false, light=false;
+    float amplitude=.70f, speed=1.f, phase=0.f;
     float samples[128]{};
-    char input[128]="Dear ImGui";
+    char input[160]="Type here ...";
 } s;
-bool touchMode=false;
-float uiScale=1.f;
 float safeTop=0,safeRight=0,safeBottom=0,safeLeft=0;
 float keyboard=0.f;
 bool requestTextFocus=false;
+
+void Overview(bool compact) {
+    ui::Heading("One UI. Every screen.");
+    ui::Muted("Native Dear ImGui components. Shared C++ state, no web framework.");
+    ui::Badge("WASM",ui::Status::Info);
+    ImGui::SameLine();ui::Badge("Native",ui::Status::Success);
+    ImGui::SameLine();ui::Badge("Zero UI dependencies",ui::Status::Info);
+    ImGui::Spacing();
+    ImGui::Text("GPU renderer  |  %.0f FPS",ImGui::GetIO().Framerate);
+    ImGui::TextDisabled("Viewport: %.0f x %.0f",ImGui::GetIO().DisplaySize.x,ImGui::GetIO().DisplaySize.y);
+    for(int i=0;i<127;++i)s.samples[i]=s.samples[i+1];
+    if(s.animate)s.phase+=std::min(ImGui::GetIO().DeltaTime,.1f)*s.speed*2.f;
+    s.samples[127]=.5f+.36f*s.amplitude*(std::sin(s.phase)+.3f*std::sin(3.f*s.phase));
+    ImGui::PlotLines("##wave",s.samples,128,0,"Live C++ waveform",0.f,1.f,
+                     ImVec2(-1.f,compact?110.f:185.f));
+    if(ui::Button("Explore components",ui::Variant::Primary,
+          ImVec2(compact?-1.f:205.f,0)))s.tab=1;
+    if(!compact){ImGui::SameLine();if(ui::Button("Architecture",ui::Variant::Outline))s.tab=2;}
+    ImGui::Spacing();
+    ui::Alert("One shared implementation",
+              "The same controls run on Windows, Linux, macOS, Android, iOS and WebAssembly.",
+              ui::Status::Info);
 }
-void app::set_touch(bool touch) {
-    if(touchMode==touch)return;
-    touchMode=touch;
-    if(touch) ImGui::GetIO().ConfigFlags|=ImGuiConfigFlags_IsTouchScreen;
-    ImGuiStyle& st=ImGui::GetStyle();
-    if(touch) {
-        st.FramePadding=ImVec2(14,11);
-        st.ItemSpacing=ImVec2(10,11);
-        st.GrabMinSize=24.f;
-        st.TouchExtraPadding=ImVec2(3,4);
-        st.ScrollbarSize=20.f;
-        st.FontSizeBase=19.f;
+void Components(bool compact) {
+    ui::Heading("Component foundation");
+    ui::Muted("First principles: identity, action, input, choice, feedback and layout.");
+    ImGui::Spacing();
+    const float total=ImGui::GetContentRegionAvail().x;
+    const bool columns=!compact && total>780.f;
+    if(columns)ImGui::Columns(2,"##component-columns",false);
+    if(ui::BeginCard("##actions",330.f*ui::scale())) {
+        ui::Heading("Actions");
+        ui::Muted("Primary, secondary, outline, ghost and destructive.");
+        if(ui::Button("Primary action",ui::Variant::Primary))++s.clicks;
+        ImGui::SameLine();ui::Button("Secondary",ui::Variant::Secondary);
+        ui::Button("Outline",ui::Variant::Outline);
+        ImGui::SameLine();ui::Button("Ghost",ui::Variant::Ghost);
+        ui::Button("Delete",ui::Variant::Error);
+        ImGui::SameLine();ui::Button("Disabled",ui::Variant::Neutral,{0,0},false);
+        ImGui::Text("Clicked: %d",s.clicks);
+        ui::Badge("Ready",ui::Status::Success);
+        ImGui::SameLine();ui::Badge("Notice",ui::Status::Warning);
     }
+    ui::EndCard();
+    if(columns)ImGui::NextColumn();
+    else ImGui::Spacing();
+    if(ui::BeginCard("##fields",330.f*ui::scale())) {
+        ui::Heading("Inputs");
+        ui::Muted("Keyboard, clipboard, touch and hardware keys.");
+        if(requestTextFocus){ImGui::SetKeyboardFocusHere();requestTextFocus=false;}
+        ui::Input("Your text",s.input,sizeof(s.input),"Write something");
+#ifdef __EMSCRIPTEN__
+        const ImVec2 a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        browser_input_rect(a.x,a.y,b.x-a.x,b.y-a.y);
+#endif
+        ui::Slider("Intensity",&s.amplitude,0.f,1.f);
+        ui::Checkbox("Animate waveform",&s.animate);
+        ui::Switch("Notifications",&s.notifications);
+    }
+    ui::EndCard();
+    if(columns)ImGui::Columns(1);
+    ImGui::Spacing();
+    ui::Alert("Saved locally in memory",
+              "Controls share one C++ state object. This demo does not send input to a server.",
+              ui::Status::Success);
+}
+void System() {
+    ui::Heading("Design system");
+    ui::Muted("Semantic tokens, not per-screen colors. One understated design.");
+    ImGui::Spacing();
+    if(ui::BeginCard("##themes",210.f*ui::scale())) {
+        ui::Heading("Theme");
+        ui::Muted("Slate: Dark / Light. Custom palettes are C++ data.");
+        ui::Switch("Light appearance",&s.light);
+        // Switch is a standard ImGui button with keyboard focus and native input.
+        const ui::Mode desired=s.light?ui::Mode::Light:ui::Mode::Dark;
+        if(ui::mode()!=desired)ui::set_mode(desired);
+        ui::Divider();
+        ui::Badge("Primary",ui::Status::Info);
+        ImGui::SameLine();ui::Badge("Success",ui::Status::Success);
+        ImGui::SameLine();ui::Badge("Warning",ui::Status::Warning);
+        ImGui::SameLine();ui::Badge("Error",ui::Status::Error);
+    }
+    ui::EndCard();
+    ImGui::Spacing();
+    ui::Muted("C++20 + Dear ImGui. Win32 / X11 / UIKit + Metal / Android NDK / WASM.");
+    if(ui::Button("Show Dear ImGui demo",ui::Variant::Outline))s.official=!s.official;
+    ImGui::SameLine();if(ui::Button("Metrics",ui::Variant::Ghost))s.metrics=!s.metrics;
+}
+}
+void app::setup() {
+    ui::initialize();
+}
+void app::set_touch(bool enabled) {
+    if(enabled)ImGui::GetIO().ConfigFlags|=ImGuiConfigFlags_IsTouchScreen;
+    else ImGui::GetIO().ConfigFlags&=~ImGuiConfigFlags_IsTouchScreen;
+    ui::set_touch(enabled);
 }
 void app::safe_area(float top,float right,float bottom,float left) {
     safeTop=top;safeRight=right;safeBottom=bottom;safeLeft=left;
 }
-void app::keyboard_height(float height) {keyboard=std::max(0.f,height);}
-void app::request_text_focus() {requestTextFocus=true;}
-void app::zoom(float ratio) {
-    if(!std::isfinite(ratio)||ratio<=0.f)return;
-    const float scale=std::clamp(uiScale*ratio,.8f,1.8f);
-    const float delta=scale/uiScale;
-    if(std::abs(delta-1.f)<.001f)return;
-    auto& st=ImGui::GetStyle();
-    st.ScaleAllSizes(delta);
-    st.FontScaleMain*=delta;
-    uiScale=scale;
-}
-void app::setup() {
-    ImGui::StyleColorsDark();
-    ImGuiStyle& x=ImGui::GetStyle();
-    x.WindowRounding=10.f; x.ChildRounding=8.f; x.FrameRounding=7.f;
-    x.FramePadding=ImVec2(11.f,8.f); x.ItemSpacing=ImVec2(9.f,9.f);
-    x.Colors[ImGuiCol_WindowBg]=ImVec4(.075f,.09f,.13f,1.f);
-}
+void app::keyboard_height(float value){keyboard=std::max(0.f,value);}
+void app::request_text_focus(){requestTextFocus=true;s.tab=1;}
+void app::zoom(float ratio){ui::zoom(ratio);}
 void app::draw() {
-    ImGuiIO& io=ImGui::GetIO();
-    if(io.DisplaySize.x<=0||io.DisplaySize.y<=0) return;
-    bool mobile=touchMode||io.DisplaySize.x<700.f;
-    float margin=mobile?8.f:24.f;
-    float x=margin+safeLeft,y=margin+safeTop;
-    float width=std::max(240.f,io.DisplaySize.x-x-margin-safeRight);
-    float height=std::max(160.f,io.DisplaySize.y-y-margin-safeBottom-keyboard);
-    ImGui::SetNextWindowPos(ImVec2(x,y),ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(width,height),ImGuiCond_Always);
-    ImGui::Begin("##direct",nullptr,ImGuiWindowFlags_NoTitleBar|
-        ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
-        ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings);
-    ImGui::TextColored(ImVec4(.48f,.74f,1.f,1.f),"IMGUI / DIRECT");
-    ImGui::TextDisabled("One C++20 UI - Native GPU / WebAssembly");
-    ImGui::Separator();
-    float buttonWidth=(ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x*2.f)/3.f;
-    if(ImGui::Button("Overview",ImVec2(buttonWidth,0))) s.tab=0;
-    ImGui::SameLine();
-    if(ImGui::Button("Controls",ImVec2(buttonWidth,0))) s.tab=1;
-    ImGui::SameLine();
-    if(ImGui::Button("System",ImVec2(buttonWidth,0))) s.tab=2;
-    ImGui::Separator();
-    if(s.tab==0) {
-        ImGui::Text("GPU-rendered UI  |  %.1f FPS",io.Framerate);
-        ImGui::TextDisabled("Viewport: %.0f x %.0f",io.DisplaySize.x,io.DisplaySize.y);
-        for(int i=0;i<127;++i) s.samples[i]=s.samples[i+1];
-        if(s.animate) s.phase+=std::min(io.DeltaTime,.1f)*s.speed*2.f;
-        s.samples[127]=.5f+.36f*s.amplitude*(std::sin(s.phase)+.3f*std::sin(s.phase*3.f));
-        ImGui::PlotLines("##plot",s.samples,128,0,"Live C++ waveform",0.f,1.f,
-                         ImVec2(-1.f,mobile?115.f:210.f));
-        ImGui::Checkbox("Animate",&s.animate);
-    } else if(s.tab==1) {
-        if(ImGui::Button("Click me")) ++s.clicks;
-        ImGui::SameLine(); ImGui::Text("Counter: %d",s.clicks);
-        ImGui::SliderFloat("Amplitude",&s.amplitude,0.f,1.f);
-        ImGui::SliderFloat("Speed",&s.speed,0.f,4.f);
-        if(requestTextFocus) {ImGui::SetKeyboardFocusHere();requestTextFocus=false;}
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##native-text",s.input,sizeof(s.input));
-#ifdef __EMSCRIPTEN__
-        auto inputMin=ImGui::GetItemRectMin();
-        auto inputMax=ImGui::GetItemRectMax();
-        browser_input_rect(inputMin.x,inputMin.y,inputMax.x-inputMin.x,inputMax.y-inputMin.y);
-#endif
-        ImGui::TextDisabled("Native keyboard / paste / hardware keys");
-        ImGui::Separator();
-        ImGui::TextWrapped("Try tap, drag, long press for context, two-finger pan, pinch to zoom.");
-        ImGui::Checkbox("ImGui metrics",&s.metrics);
-        ImGui::Checkbox("Official demo",&s.official);
-    } else {
-        ImGui::BulletText("Dear ImGui is the permanent UI core");
-        ImGui::BulletText("Direct platform APIs, no SDL/GLFW/Sokol");
-        ImGui::BulletText("Rendering: OpenGL/WebGL2; Metal on Apple");
-        ImGui::BulletText("Browser: same C++ code, Emscripten WASM");
-        ImGui::TextWrapped("Only third-party source dependency: ocornut/imgui.");
-    }
-    ImGui::Separator();
-    ImGui::TextDisabled("Identical C++ UI on every platform.  Zoom %.0f%%",uiScale*100.f);
+    auto& io=ImGui::GetIO();
+    if(io.DisplaySize.x<=0.f||io.DisplaySize.y<=0.f)return;
+    const bool compact=ui::is_touch() || io.DisplaySize.x<720.f;
+    const float margin=compact?7.f:20.f;
+    const float x=margin+safeLeft,y=margin+safeTop;
+    const float width=std::max(225.f,io.DisplaySize.x-x-margin-safeRight);
+    const float height=std::max(160.f,io.DisplaySize.y-y-margin-safeBottom-keyboard);
+    ImGui::SetNextWindowPos({x,y},ImGuiCond_Always);
+    ImGui::SetNextWindowSize({width,height},ImGuiCond_Always);
+    const ImGuiWindowFlags flags=ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
+        ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings;
+    ImGui::Begin("##app",nullptr,flags);
+    ui::Heading("IMGUI / DIRECT");
+    ui::Muted("Native C++ components");
+    ImGui::Spacing();
+    // Deliberately keep the appearance switch reachable with one hand on phones.
+    const char* names[]={"Overview","Components","Theme"};
+    ui::Tabs("main-tabs",names,3,&s.tab);
+    ui::Divider();
+    if(s.tab==0) Overview(compact);
+    else if(s.tab==1) Components(compact);
+    else System();
 #ifdef __EMSCRIPTEN__
     if(s.tab!=1)browser_input_rect(0,0,0,0);
 #endif
+    ImGui::Spacing();
+    ui::Divider();
+    ui::Muted("Dear ImGui is the fixed UI core  -  C++20  -  Direct GPU");
     ImGui::End();
-    if(s.metrics) ImGui::ShowMetricsWindow(&s.metrics);
-    if(s.official) ImGui::ShowDemoWindow(&s.official);
+    if(s.metrics)ImGui::ShowMetricsWindow(&s.metrics);
+    if(s.official)ImGui::ShowDemoWindow(&s.official);
 }

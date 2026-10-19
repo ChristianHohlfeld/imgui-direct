@@ -1,4 +1,6 @@
 #include "touch_imgui.hpp"
+#include "ui/theme.hpp"
+#include <android/configuration.h>
 #include "utf.hpp"
 #include <android/input.h>
 #include <jni.h>
@@ -144,8 +146,11 @@ bool startup(ANativeWindow* window) {
     app::set_touch(true);
     ImGui::GetPlatformIO().Platform_GetClipboardTextFn=getClipboard;
     ImGui::GetPlatformIO().Platform_SetClipboardTextFn=setClipboard;
-    ImGui::GetStyle().ScaleAllSizes(1.7f);
-    ImGui::GetStyle().FontScaleDpi=1.7f;
+    // ImGui uses physical surface pixels here, unlike UIKit CSS/logical points.
+    // Calculate density once, and let the shared theme system set font + hit sizes.
+    int dpi=gApp && gApp->config ? AConfiguration_getDensity(gApp->config) : 160;
+    float density=(dpi>100 && dpi<1000)?float(dpi)/160.f:1.f;
+    ui::set_scale(density);
     if(!ImGui_ImplAndroid_Init(window)||!ImGui_ImplOpenGL3_Init("#version 300 es"))return false;
     ready=true;return true;
 }

@@ -38,6 +38,18 @@ python3 -m http.server 8000 -d build-web
 
 Open http://localhost:8000/index.html (do not use file://). [GitHub Actions](https://github.com/ChristianHohlfeld/imgui-direct/actions) builds and attempts to publish to [GitHub Pages](https://christianhohlfeld.github.io/imgui-direct/). Pages source must be set to **GitHub Actions** in Settings > Pages. The web `build` job uploads a standalone `imgui-direct-web-wasm` artifact even if Pages is disabled. The `deploy` job will fail until **Settings > Pages > Build and deployment > Source: GitHub Actions** is enabled. After enabling, re-run the failed deployment job or manually trigger the workflow. Do not consider the demo live until deployment passes.
 
+## UI foundation (native C++)
+
+The `src/ui/` library is built around Dear ImGui, without any new runtime
+dependencies. One semantic `Palette` defines base, content, primary,
+secondary, neutral and feedback colors. Built-in *Slate Dark* and *Slate Light*
+can be switched live, or replaced with a custom C++ palette.
+
+The first ten primitives are text/heading, card, button variants,
+input, checkbox, switch, slider, tabs, badge and alert. All controls use
+the same mobile-aware metrics (touch targets and margins).
+See [docs/ui.md](docs/ui.md) for the API and examples.
+
 ## Mobile input
 
 All touch behavior lives in `src/touch.hpp`, independent of UIKit, Android
@@ -52,6 +64,8 @@ scale for mobile, including safe areas and keyboard occlusion.
   UIPasteboard, Metal renderer. Hardware keyboard integration is native OS
   input. No webview.
 - **Android:** NDK/NativeActivity/EGL; touch gestures and state stay in C++.
+  UI density is read from Android's native AConfiguration and applied once
+  through the shared C++ theme; there is no Android-specific widget toolkit.
   A tiny Java platform class supplies Android's required InputConnection/IME
   and system clipboard only (without Gradle or third-party frameworks).
   The signed **debug APK** is a downloadable GitHub Actions artifact.
