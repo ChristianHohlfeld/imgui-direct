@@ -8,7 +8,8 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Isolate from the run GitHub left in_progress after its deploy was cancelled.
+  group: pages-recovery-${{ github.ref }}
   # A fresh main push supersedes a deploy stuck during a GitHub Pages outage.
   cancel-in-progress: true
 
