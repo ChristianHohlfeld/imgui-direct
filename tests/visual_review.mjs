@@ -37,6 +37,10 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  });
  console.log(name,JSON.stringify({http:response?.status(),...state,errors}));
  if(!state.gl || state.status || errors.length)failures.push(name+' status '+JSON.stringify(state));
+ if(await page.locator('button').count()!==0)
+   failures.push(name+' HTML startup button bypasses native component system');
+ if((await page.title())!=='Komponenten')
+   failures.push(name+' technical browser title still exposed');
  if(state.canvasWidth !== state.metrics?.pixelWidth ||
     state.canvasHeight !== state.metrics?.pixelHeight ||
     state.canvasWidth !== state.drawingWidth ||

@@ -5,7 +5,7 @@
 </style></head>
 <body><canvas id="canvas" tabindex="0"></canvas><div id="status" role="status" aria-live="polite">Wird vorbereitet …</div>
 <textarea id="native-input" autocomplete="on" autocapitalize="sentences" spellcheck="true"></textarea>
-<script>var Module={canvas:document.getElementById('canvas'),onRuntimeInitialized:function(){document.getElementById('status').textContent=''},onAbort:function(x){document.getElementById('status').textContent='Die Anwendung konnte nicht gestartet werden: '+x},printErr:console.error.bind(console)};</script>
+<script>var Module={canvas:document.getElementById('canvas'),onRuntimeInitialized:function(){/* status hides on the first rendered frame */},onAbort:function(x){document.getElementById('status').textContent='Die Anwendung konnte nicht gestartet werden: '+x},printErr:console.error.bind(console)};</script>
 <script>
 (function(){
   const input=document.getElementById('native-input');

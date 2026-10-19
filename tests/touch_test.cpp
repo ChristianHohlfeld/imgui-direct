@@ -48,6 +48,20 @@ int main() {
     const auto inertia1=g.tick(10.056);
     assert(!inertia1.empty());
     g.reset();
+    // Tap must produce a normal button release; scroll swipe must cancel it.
+    g.reset();
+    a=g.update({{1,30,30}},4.4);
+    assert(a.back().type==Type::Down);
+    a=g.update({},4.43);
+    assert(a.size()==1&&a.back().type==Type::Up);
+    g.reset();
+    a=g.update({{1,30,30}},4.6);
+    a=g.update({{1,31,75}},4.62,true);
+    assert(a.size()==2&&a.front().type==Type::Cancel);
+    assert(a.back().type==Type::Scroll);
+    a=g.update({},4.64);
+    for(const auto& evt:a)assert(evt.type!=Type::Up);
+    g.reset();
     a=g.update({{1,10,10}},5.);
     a=g.update({{1,10,50}},5.02,false);
     assert(a.size()==1&&a[0].type==Type::Move); // Active slider: drag, no scroll.

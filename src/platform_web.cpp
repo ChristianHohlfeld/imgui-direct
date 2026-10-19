@@ -35,6 +35,11 @@ EM_JS(void, diagnostic_wheel, (float x,float y,float mouseX,float mouseY,int mod
     window.__imguiRawWheel={x,y,mouseX,mouseY,mode,received:(window.__imguiRawWheel?.received||0)+1};
 });
 
+EM_JS(void, bootstrap_frame_ready, (), {
+    const status=document.getElementById('status');
+    if(status && status.textContent)status.textContent='';
+});
+
 ImGuiKey mapkey(const char* k) {
     if(std::strncmp(k,"Key",3)==0 && std::strlen(k)==4 && k[3]>='A'&&k[3]<='Z') return (ImGuiKey)(ImGuiKey_A+k[3]-'A');
     if(std::strncmp(k,"Digit",5)==0 && std::strlen(k)==6 && k[5]>='0'&&k[5]<='9') return (ImGuiKey)(ImGuiKey_0+k[5]-'0');
@@ -156,6 +161,7 @@ void frame() {
     glClearColor(background.r,background.g,background.b,1);
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    bootstrap_frame_ready();
 }
 }
 int main() {
