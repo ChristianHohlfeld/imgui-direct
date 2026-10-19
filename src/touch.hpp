@@ -81,7 +81,7 @@ public:
             const float displacement=std::hypot(p.x-x0_,p.y-y0_);
             // Drag sliders/buttons as normal; pan non-interactive content with one finger.
             if(allow_scroll && displacement>13.f && std::abs(p.y-y0_)>std::abs(p.x-x0_)*1.15f) {
-                send(Type::Up,first_.x,first_.y,0,0,first_.pen);
+                send(Type::Cancel,first_.x,first_.y,0,0,first_.pen);
                 mode_=Mode::Scroll;holding_=false;
                 velocity_x_=velocity_y_=0;
                 // Transfer the complete gesture delta, including the initial

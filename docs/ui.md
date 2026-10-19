@@ -134,3 +134,19 @@ pixel accumulation, nested scroll chaining, and tests.
 The app submits only visible rows; the list is not an infinite network feed,
 but shows how endless or paginated data can remain constant-cost per frame.
 A real device and trackpad are required to compare subjective OS kinetics.
+
+## Bootstrap and interaction guarantees
+
+The WebAssembly entry loads automatically. Before the module starts, the
+browser can display only a **noninteractive** status indicator; a C++/Dear ImGui
+button cannot exist until the WASM runtime is initialized. There is no second
+HTML start button with different behavior. After initialization, every action
+uses `ui::Button` from the C++ component library.
+
+`ui::button_visual(options)` exposes normal/hover/pressed/foreground/border
+color roles for deterministic tests. Solid buttons have **distinct** pressed
+and hover shades, selected buttons have a semantic outline, invalid controls
+use error outline, disabled/loading cannot activate, and touch uses pressed
+feedback rather than sticky hover. Keyboard focus uses an accessible visible
+ring when keyboard navigation is active. Gesture cancel prevents a touch
+scroll from committing a pending button click.

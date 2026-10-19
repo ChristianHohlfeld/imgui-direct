@@ -32,12 +32,19 @@ struct Field {
     const char* help=nullptr;
 };
 struct Interaction {
-    bool hovered=false;
-    bool held=false;
-    bool focused=false;
-    bool activated=false;
+    bool hovered=false; // pointer hover; false on touch after release
+    bool held=false; // active press and drag, mouse or touch
+    bool focused=false; // keyboard navigation focus
+    bool activated=false; // this frame's activation transition
     bool disabled=false;
+    bool released=false; // button/key release
 };
+struct ButtonVisual {
+    Color normal, hover, pressed, text, border;
+    bool outline=false;
+};
+// Theme-derived component states, testable without DOM/CSS.
+ButtonVisual button_visual(Options options);
 
 float control_height(Size size=Size::MD);
 Interaction last_interaction(bool disabled=false);
