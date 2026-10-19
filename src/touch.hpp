@@ -61,7 +61,10 @@ public:
         }
         const Contact p=contacts.front();
         if(mode_==Mode::Multi||mode_==Mode::Suppressed) {
-            // Never turn a departing second finger into a spurious single-finger click.
+            // Don't click when a second finger leaves. Keep kinetic velocity and
+            // start coasting only after the remaining finger also leaves.
+            if(mode_==Mode::Multi)
+                momentum_=std::hypot(velocity_x_,velocity_y_)>.6f;
             mode_=Mode::Suppressed;
             return out;
         }

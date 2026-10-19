@@ -23,6 +23,7 @@ int main() {
     a=g.update({{1,20,45}},2.05);
     assert(a.empty()); // Second finger ending may not click.
     a=g.update({},2.06);
+    assert(g.tick(2.075).size()==1); // Multi-finger kinetic scroll survives final lift.
     g.reset();
     a=g.update({{1,10,10}},3.);
     a=g.tick(3.60);
