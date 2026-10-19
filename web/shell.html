@@ -32,5 +32,71 @@
   });
 })();
 </script>
+<script>
+// No extra UI framework. This is the minimum browser-specific pixel adapter.
+// Device-pixel-content-box is authoritative where supported: unlike
+// Math.round(cssSize * devicePixelRatio), it is aligned to the compositor's
+// actual content box under fractional zoom / Windows DPI scaling.
+(function () {
+  const canvas = document.getElementById('canvas');
+  const state = {
+    cssWidth: 0, cssHeight: 0, pixelWidth: 0, pixelHeight: 0,
+    exact: false, dpr: 1, source: 'initial', ready: false
+  };
+  let observed = null;
+  function sizeFromLayout() {
+    const rect = canvas.getBoundingClientRect();
+    const cssWidth = rect.width;
+    const cssHeight = rect.height;
+    const dpr = window.devicePixelRatio || 1;
+    if (!(cssWidth > 0 && cssHeight > 0)) return state;
+    // If a devicePixelContentBox observation is stale, fall back until its
+    // next delivery; never use old physical pixels with a new CSS viewport.
+    const useObserved = observed &&
+      Math.abs(observed.cssWidth - cssWidth) < 1e-5 &&
+      Math.abs(observed.cssHeight - cssHeight) < 1e-5 &&
+      observed.dpr === dpr;
+    const pxWidth = useObserved ? observed.pixelWidth : Math.round(cssWidth * dpr);
+    const pxHeight = useObserved ? observed.pixelHeight : Math.round(cssHeight * dpr);
+    const width = Math.max(1, pxWidth), height = Math.max(1, pxHeight);
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    Object.assign(state, {
+      cssWidth, cssHeight, pixelWidth: width, pixelHeight: height, dpr,
+      exact: !!useObserved, source: useObserved ? 'device-pixel-content-box' : 'dpr-fallback',
+      ready: true
+    });
+    return state;
+  }
+  const observer = new ResizeObserver(entries => {
+    const entry = entries.find(e => e.target === canvas);
+    if (entry && entry.devicePixelContentBoxSize) {
+      const box = Array.isArray(entry.devicePixelContentBoxSize)
+        ? entry.devicePixelContentBoxSize[0] : entry.devicePixelContentBoxSize;
+      const r = canvas.getBoundingClientRect();
+      observed = {
+        pixelWidth: box.inlineSize, pixelHeight: box.blockSize,
+        cssWidth: r.width, cssHeight: r.height,
+        dpr: window.devicePixelRatio || 1
+      };
+    } else observed = null;
+    sizeFromLayout();
+  });
+  try {
+    observer.observe(canvas, { box: 'device-pixel-content-box' });
+  } catch {
+    observer.observe(canvas);
+  }
+  window.__imguiCanvasPixels = { state, sync: sizeFromLayout };
+  window.addEventListener('resize', sizeFromLayout, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', sizeFromLayout, { passive: true });
+  }
+  // Ensure the canvas has the right backing size even on its FIRST WebGL frame.
+  sizeFromLayout();
+})();
+</script>
 {{{ SCRIPT }}}
 </body></html>

@@ -82,17 +82,37 @@ EM_BOOL touchcb(int kind,const EmscriptenTouchEvent* e,void*) {
     touch::dispatch(gestures.update(current,emscripten_get_now()/1000.,!ImGui::IsAnyItemActive()));
     return EM_TRUE;
 }
+// Take both logical CSS size and the TRUE WebGL drawing-buffer size from the
+// same browser snapshot. ResizeObserver owns canvas.width/height, preventing
+// a competing C++ resize and a one-frame/stretch mismatch.
+EM_JS(int, read_canvas_pixels, (double* outCssW, double* outCssH,
+                               int* outWidth, int* outHeight,
+                               int* outGlWidth, int* outGlHeight), {
+    const adapter = window.__imguiCanvasPixels;
+    if (!adapter) return 0;
+    const state = adapter.sync();
+    const gl = Module.canvas.getContext('webgl2');
+    if (!state.ready || !gl) return 0;
+    HEAPF64[outCssW >> 3] = state.cssWidth;
+    HEAPF64[outCssH >> 3] = state.cssHeight;
+    HEAP32[outWidth >> 2] = state.pixelWidth;
+    HEAP32[outHeight >> 2] = state.pixelHeight;
+    HEAP32[outGlWidth >> 2] = gl.drawingBufferWidth;
+    HEAP32[outGlHeight >> 2] = gl.drawingBufferHeight;
+    return 1;
+});
 void frame() {
     double w=0,h=0;
-    emscripten_get_element_css_size("#canvas",&w,&h);
-    double dpr=std::max(1.0,emscripten_get_device_pixel_ratio());
-    int fw=std::max(1,(int)(w*dpr)),fh=std::max(1,(int)(h*dpr));
-    int cw=0,ch=0;
-    emscripten_get_canvas_element_size("#canvas",&cw,&ch);
-    if(fw!=cw||fh!=ch) emscripten_set_canvas_element_size("#canvas",fw,fh);
+    int requestedW=0,requestedH=0,fw=0,fh=0;
+    if (!read_canvas_pixels(&w,&h,&requestedW,&requestedH,&fw,&fh))
+        return;
+    // Rendering a different-size buffer would force the browser to resample
+    // the completed picture, including text. Never render such a frame.
+    if (requestedW!=fw || requestedH!=fh || fw<1 || fh<1)
+        return;
     auto& io=ImGui::GetIO();
     io.DisplaySize=ImVec2((float)w,(float)h);
-    io.DisplayFramebufferScale=ImVec2((float)(fw/std::max(w,1.)),(float)(fh/std::max(h,1.)));
+    io.DisplayFramebufferScale=ImVec2((float)((double)fw/w),(float)((double)fh/h));
     double now=emscripten_get_now();
     io.DeltaTime=previous?std::max(.001f,(float)((now-previous)/1000.)):1.f/60.f;
     previous=now;
