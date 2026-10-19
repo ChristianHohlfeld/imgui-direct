@@ -37,6 +37,10 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  });
  console.log(name,JSON.stringify({http:response?.status(),...state,errors}));
  if(!state.gl || state.status || errors.length)failures.push(name+' status '+JSON.stringify(state));
+ if(await page.locator('button').count()!==0)
+   failures.push(name+' HTML startup button bypasses native component system');
+ if((await page.title())!=='Komponenten')
+   failures.push(name+' technical browser title still exposed');
  if(state.canvasWidth !== state.metrics?.pixelWidth ||
     state.canvasHeight !== state.metrics?.pixelHeight ||
     state.canvasWidth !== state.drawingWidth ||
@@ -55,13 +59,69 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  // Exact native devicePixelContentBox when trustworthy; the fallback is
  // necessary on browsers/emulators which report CSS units from the observer.
  if(!state.metrics?.exact)console.log(name+' fallback: '+state.metrics?.source);
+ // A button must respond to a real mobile touch tap and reject a swipe
+ // that began over the same button. This probes the *full* browser -> touch
+ // controller -> ImGui -> C++ component chain.
+ if(name==='mobile'){
+   await page.waitForFunction(()=>window.__imguiUIState?.page===0,null,{timeout:6000});
+   const first=await page.evaluate(()=>window.__imguiUIState.clicks);
+   await page.touchscreen.tap(105,374); // primary button, CSS-pixel coordinates
+   await page.waitForFunction(initial=>window.__imguiUIState?.clicks===initial+1,
+                              first,{timeout:4000});
+   const clicked=await page.evaluate(()=>window.__imguiUIState.clicks);
+   const session=await page.context().newCDPSession(page);
+   try {
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchStart',touchPoints:[{x:105,y:374}]});
+     await page.waitForTimeout(75);
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchMove',touchPoints:[{x:105,y:294}]});
+     await page.waitForTimeout(100);
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchEnd',touchPoints:[]});
+     await page.waitForTimeout(160);
+     const end=await page.evaluate(()=>window.__imguiUIState.clicks);
+     if(end!==clicked)failures.push('swipe incorrectly clicked native button');
+     console.log('touch-button',JSON.stringify({tap:clicked-first,swipeClicks:end-clicked}));
+   } finally {await session.detach();}
+ }
+ // Assert the DOM event's actual CSS delta, not Playwright's requested
+ // PHYSICAL wheel distance (the two differ under simulated DPR > 1).
+ if(name==='mobile'){
+   await page.mouse.move(180,650);
+   const start=await page.evaluate(()=>window.__imguiScrollTotal||0);
+   await page.mouse.wheel(0,90);
+   await page.waitForFunction(()=>window.__imguiRawWheel?.received>0,
+                              null,{timeout:6000});
+   const actual=await page.evaluate(()=>window.__imguiRawWheel.y);
+   await page.waitForFunction(({start,actual})=>
+     (window.__imguiScrollTotal||0)>=start+actual-1,
+     {start,actual},{timeout:6000});
+   let moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,start);
+   console.log('real-wheel',JSON.stringify({physicalRequest:90,cssReceived:actual,moved}));
+   if(Math.abs(moved-actual)>1.2)failures.push('real Chrome wheel delta mismatch: '+moved+' vs '+actual);
+
+   // Explicitly emit a CSS-pixel precise WheelEvent to ensure 90 really
+   // means 90 logical layout pixels (no double ImGui wheel scaling).
+   const secondStart=await page.evaluate(()=>window.__imguiScrollTotal||0);
+   await page.evaluate(()=>document.getElementById('canvas').dispatchEvent(
+      new WheelEvent('wheel',{deltaX:0,deltaY:90,deltaMode:0,
+                              clientX:180,clientY:650,bubbles:true,cancelable:true})));
+   await page.waitForFunction(start=>
+       (window.__imguiScrollTotal||0)>=start+89,
+       secondStart,{timeout:6000});
+   moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,secondStart);
+   console.log('synthetic-css-wheel',JSON.stringify({expected:90,moved}));
+   if(Math.abs(moved-90)>1.2)failures.push('1:1 DOM pixel delta mismatch: '+moved);
+ }
  if(name==='desktop') {
   await page.mouse.click(730,136);
   await page.waitForTimeout(900);
   await page.screenshot({path:'visual-review/desktop-elements.png'});
  }
  if(name==='mobile') {
-  await page.touchscreen.tap(195,132);
+  // Four tabs: x~145 selects Formulare; this page is scrollable too.
+  await page.touchscreen.tap(143,122);
   await page.waitForTimeout(1000);
   await page.screenshot({path:'visual-review/mobile-elements.png'});
  }
@@ -76,6 +136,50 @@ try {
  await capture('dpi150',1111,803,1.5,false);
  await capture('dpi133',1001,713,1.3333333333,false);
  await capture('dpi300',393,852,3,true);
+ // The public 'Liste' tab has 100,000 records; the C++ clipper should
+ // submit only the visible items and render immediately on a wheel delta.
+ const listPage=await browser.newPage({viewport:{width:390,height:844},
+                                      deviceScaleFactor:2,isMobile:true,hasTouch:true});
+ try{
+   await listPage.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
+   await listPage.waitForTimeout(2400);
+   // Hold through at least two frames so real ImGui mouse-down/up are
+   // processed, rather than dropping a synthetic 1ms click on WebGL.
+   await listPage.mouse.move(339,122);
+   await listPage.mouse.down();
+   await listPage.waitForTimeout(105);
+   await listPage.mouse.up();
+   try {
+     await listPage.waitForFunction(()=>window.__imguiUIState?.page===3,
+                                    null,{timeout:4500});
+     await listPage.waitForFunction(()=>window.__imguiScroll?.rowsRendered>0,
+                                    null,{timeout:4500});
+   } catch(error) {
+     console.log('list selection debug',JSON.stringify(
+       await listPage.evaluate(()=>({ui:window.__imguiUIState,
+           scroll:window.__imguiScroll, wheel:window.__imguiRawWheel}))));
+     await listPage.screenshot({path:'visual-review/list-selection-failed.png'});
+     throw error;
+   }
+   const before=await listPage.evaluate(()=>window.__imguiScrollTotal||0);
+   const visible=await listPage.evaluate(()=>window.__imguiScroll?.rowsRendered);
+   if(visible>55)failures.push('list virtualization submitted '+visible+' rows');
+   await listPage.mouse.move(180,580);
+   await listPage.mouse.wheel(0,117);
+   await listPage.waitForFunction(()=>window.__imguiRawWheel?.received>0,
+                                  null,{timeout:5000});
+   const actualDelta=await listPage.evaluate(()=>window.__imguiRawWheel.y);
+   await listPage.waitForFunction(({before,actualDelta})=>
+       (window.__imguiScrollTotal||0)>=before+actualDelta-1,
+       {before,actualDelta},{timeout:6000});
+   const movement=await listPage.evaluate(start=>
+       (window.__imguiScrollTotal||0)-start,before);
+   if(Math.abs(movement-actualDelta)>1.2)
+       failures.push('list precise wheel: '+movement+' vs '+actualDelta);
+   await listPage.screenshot({path:'visual-review/virtual-list.png'});
+   console.log('virtual-list',JSON.stringify({total:100000,visible,movement}));
+ }finally{await listPage.close();}
+
  // Resize the same GL context: update size, actual buffer and viewport together.
  const resize=await browser.newPage({viewport:{width:801,height:601},deviceScaleFactor:1.25});
  try {

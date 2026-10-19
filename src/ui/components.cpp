@@ -1,4 +1,5 @@
 #include "ui/components.hpp"
+#include "ui/scroll.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cfloat>
@@ -26,30 +27,44 @@ Color intent(Variant v) {
     default:return p.primary;
     }
 }
-struct Paint {Color normal,hover,pressed,text;bool outline=false;};
+using Paint=ButtonVisual;
+Color lighten(Color c,float ratio){return blend(c,hex(0xffffff),ratio);}
+Color darken(Color c,float ratio){return blend(c,hex(0x020617),ratio);}
+
 Paint paint(Options options){
-    const auto& p=palette();
-    const bool subtle=options.variant==Variant::Soft||
-                      options.variant==Variant::Ghost||options.variant==Variant::Outline;
-    Color base=intent(options.variant);
-    Color normal=subtle?p.base200:base;
-    if(options.variant==Variant::Ghost)normal=p.base100;
-    if(options.state.invalid)base=p.error;
-    if(options.state.selected)normal=blend(normal,base,.24f);
-    Color fg=(options.variant==Variant::Primary)?p.primaryContent:
-             (options.variant==Variant::Secondary)?p.secondaryContent:
-             (options.variant==Variant::Neutral)?p.neutralContent:
-             (subtle?p.baseContent:p.primaryContent);
-    // Use the foreground of the base for feedback buttons only where readable.
-    if(options.variant==Variant::Error||options.variant==Variant::Success||
-       options.variant==Variant::Warning||options.variant==Variant::Info)
-        fg=p.base100;
-    if(options.state.invalid){normal=blend(p.base200,p.error,.17f);fg=p.error;}
-    Paint b={normal,blend(normal,base,subtle?.16f:.15f),
-                  blend(normal,base,subtle?.28f:.29f),fg,
-                  options.variant==Variant::Outline};
-    if(options.state.selected){b.pressed=blend(b.normal,base,.42f);}
-    return b;
+    const Palette& p=palette();
+    const bool ghost=options.variant==Variant::Ghost;
+    const bool outline=options.variant==Variant::Outline;
+    const bool soft=options.variant==Variant::Soft;
+    const bool subtle=ghost||outline||soft;
+    const Color base=intent(options.variant);
+    const Color content=(options.variant==Variant::Primary)?p.primaryContent:
+        (options.variant==Variant::Secondary)?p.secondaryContent:
+        (options.variant==Variant::Neutral)?p.neutralContent:
+        (subtle?p.baseContent:p.base100);
+    // Converting a solid background into itself cannot produce a hover or
+    // pressed state. Differentiate them in the same semantic color scale.
+    Color normal=subtle?(ghost||outline?p.base100:blend(p.base200,base,.12f)):base;
+    Color text=subtle?(soft?base:p.baseContent):content;
+    Color hover=subtle?blend(normal,base,ghost?.12f:.19f):lighten(base,.16f);
+    Color pressed=subtle?blend(normal,base,.30f):darken(base,.22f);
+    if(options.state.selected){
+        normal=blend(normal,base,subtle?.23f:.10f);
+        hover=blend(normal,base,.28f);
+        pressed=blend(normal,base,.43f);
+    }
+    Color border=options.state.selected?base:p.base300;
+    if(options.state.invalid){
+        border=p.error;
+        normal=blend(p.base200,p.error,.10f);
+        hover=blend(normal,p.error,.17f);
+        pressed=blend(normal,p.error,.24f);
+        text=p.error;
+    }
+    // Preserve semantic contrast for native button content (hover and
+    // pressed feedback are conveyed by the background, not flickering text).
+    return {normal,hover,pressed,text,border,
+            outline||options.state.selected||options.state.invalid};
 }
 void focus_ring(){
     if(ImGui::IsItemFocused() && ImGui::GetIO().NavVisible){
@@ -90,6 +105,7 @@ void field_end(Field f){
     hint(f);
 }
 }
+ButtonVisual button_visual(Options options){return paint(options);}
 float control_height(Size size){
     const float desktop[]={28.f,33.f,38.f,44.f,50.f};
     const float mobile[]={44.f,44.f,46.f,50.f,58.f};
@@ -97,8 +113,10 @@ float control_height(Size size){
     return (is_touch()?mobile[i]:desktop[i])*scale();
 }
 Interaction last_interaction(bool disabled) {
-    return {ImGui::IsItemHovered(),ImGui::IsItemActive(),ImGui::IsItemFocused(),
-            ImGui::IsItemActivated(),disabled};
+    const bool touch=ImGui::GetIO().MouseSource==ImGuiMouseSource_TouchScreen;
+    return {!touch&&ImGui::IsItemHovered(),ImGui::IsItemActive(),
+            ImGui::IsItemFocused(),ImGui::IsItemActivated(),disabled,
+            ImGui::IsItemDeactivated()};
 }
 void Title(const char* value){
     ImGui::PushStyleColor(ImGuiCol_Text,vec(palette().baseContent));
@@ -156,12 +174,15 @@ bool Button(const char* title,Options opt,ImVec2 size){
         size.x=ImGui::CalcTextSize(title).x+ImGui::GetStyle().FramePadding.x*2.f+30.f*scale();
     if(opt.fullWidth)size.x=std::max(0.f,ImGui::GetContentRegionAvail().x);
     ImGui::PushStyleColor(ImGuiCol_Button,vec(p.normal));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,vec(p.hover));
+    // Touch has no hover lifecycle: the pressed shade shows while the
+    // finger is down, without a sticky mouse-hover shade after a tap.
+    const bool touchPointer=ImGui::GetIO().MouseSource==ImGuiMouseSource_TouchScreen;
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,vec(touchPointer?p.normal:p.hover));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,vec(p.pressed));
     ImGui::PushStyleColor(ImGuiCol_Text,vec(p.text));
     if(p.outline) {
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,1.f);
-        ImGui::PushStyleColor(ImGuiCol_Border,vec(palette().base300));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,1.5f);
+        ImGui::PushStyleColor(ImGuiCol_Border,vec(p.border));
     }
     if(disabled)ImGui::BeginDisabled();
     const bool clicked=ImGui::Button(title,size) && !disabled;
@@ -264,7 +285,7 @@ bool Checkbox(const char* label,bool* value,Field field) {
 }
 bool Radio(const char* label,int item,int* selected,Field field){
     if(!selected)return false;
-    if(field.disabled)ImGui::BeginDisabled();
+    if(field.disabled||field.readOnly)ImGui::BeginDisabled();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{9.f*scale(),9.f*scale()});
     const bool changed=ImGui::RadioButton(label,*selected==item)&&!field.readOnly;
     if(changed)*selected=item;
@@ -310,8 +331,11 @@ bool Slider(const char* name,float* value,float min,float max,const char* fmt,Fi
     ImGui::PushID(name);label(name,field);
     field_begin(field);
     ImGui::SetNextItemWidth(-FLT_MIN);
+    if(field.readOnly)ImGui::BeginDisabled();
     const bool changed=ImGui::SliderFloat("##slider",value,min,max,fmt,
                     field.readOnly?ImGuiSliderFlags_NoInput:0) && !field.readOnly;
+    ui::scroll::set_drag_control_active(ImGui::IsItemActive());
+    if(field.readOnly)ImGui::EndDisabled();
     field_end(field);ImGui::PopID();return changed;
 }
 void Progress(const char* title,float fraction,Status status){

@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "ui/scroll.hpp"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include <X11/Xlib.h>
@@ -41,8 +42,10 @@ void event(XEvent& e,Atom close,bool& run){
     case LeaveNotify:io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);break;
     case ButtonPress:case ButtonRelease:{
         bool down=e.type==ButtonPress;
-        if(e.xbutton.button==4&&down)io.AddMouseWheelEvent(0,1);
-        if(e.xbutton.button==5&&down)io.AddMouseWheelEvent(0,-1);
+        if(e.xbutton.button==4&&down)ui::scroll::add(0.f,-60.f);
+        if(e.xbutton.button==5&&down)ui::scroll::add(0.f,60.f);
+        if(e.xbutton.button==6&&down)ui::scroll::add(-60.f,0.f);
+        if(e.xbutton.button==7&&down)ui::scroll::add(60.f,0.f);
         int b=e.xbutton.button==1?0:e.xbutton.button==3?1:e.xbutton.button==2?2:-1;
         if(b>=0)io.AddMouseButtonEvent(b,down);
         break;

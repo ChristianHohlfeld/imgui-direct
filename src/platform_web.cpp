@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "ui/theme.hpp"
+#include "ui/scroll.hpp"
 #include "touch_imgui.hpp"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
@@ -8,6 +9,7 @@
 #include <GLES3/gl3.h>
 #include <algorithm>
 #include <cstring>
+#include <cmath>
 namespace {
 double previous=0;
 double lastTouch=-10000.;
@@ -22,6 +24,24 @@ EM_JS(void, updateNativeTextRect,(float x,float y,float width,float height,int v
         e.style.left=x+'px'; e.style.top=y+'px';
         e.style.width=width+'px'; e.style.height=height+'px';
     } else if(document.activeElement===e) e.blur();
+});
+
+EM_JS(void, report_scroll, (float x,float y,int rows,float pending,float mx,float my,float maxY,float posY,int inside,int packets), {
+    window.__imguiScroll={appliedX:x, appliedY:y, rowsRendered:rows, time:performance.now()};
+    window.__imguiScrollTotal=(window.__imguiScrollTotal||0)+y;
+    window.__imguiScrollDebug={pending,mx,my,maxY,posY,inside,packets};
+});
+EM_JS(void, diagnostic_wheel, (float x,float y,float mouseX,float mouseY,int mode), {
+    window.__imguiRawWheel={x,y,mouseX,mouseY,mode,received:(window.__imguiRawWheel?.received||0)+1};
+});
+
+EM_JS(void, bootstrap_frame_ready, (), {
+    const status=document.getElementById('status');
+    if(status && status.textContent)status.textContent='';
+});
+
+EM_JS(void, browser_qa_state, (int page,int clicks), {
+    window.__imguiUIState={page,clicks};
 });
 
 ImGuiKey mapkey(const char* k) {
@@ -66,8 +86,22 @@ EM_BOOL mousecb(int kind,const EmscriptenMouseEvent* e,void*) {
     return io.WantCaptureMouse;
 }
 EM_BOOL wheelcb(int,const EmscriptenWheelEvent* e,void*) {
-    float scale=e->deltaMode==DOM_DELTA_PIXEL?.01f:1.f;
-    ImGui::GetIO().AddMouseWheelEvent((float)-e->deltaX*scale,(float)-e->deltaY*scale);
+    // DOM deltas are pixels, lines or pages. Deliver precise pixel events
+    // 1:1. Chrome/macOS already send momentum in subsequent wheel events:
+    // smoothing or adding another inertia engine here creates lag.
+    const auto unit=e->deltaMode==DOM_DELTA_LINE?ui::scroll::Unit::Line:
+                    e->deltaMode==DOM_DELTA_PAGE?ui::scroll::Unit::Page:
+                    ui::scroll::Unit::Pixel;
+    diagnostic_wheel((float)e->deltaX,(float)e->deltaY,
+                     (float)e->mouse.targetX,(float)e->mouse.targetY,e->deltaMode);
+    const float page=std::max(200.f,ImGui::GetIO().DisplaySize.y*.90f);
+    if(e->mouse.ctrlKey) {
+        // Browser trackpad pinch is exposed as Ctrl+wheel.
+        app::zoom(std::exp(-(float)e->deltaY*.001f));
+    } else {
+        ImGui::GetIO().AddMousePosEvent((float)e->mouse.targetX,(float)e->mouse.targetY);
+        ui::scroll::add_wheel((float)e->deltaX,(float)e->deltaY,unit,20.f,page);
+    }
     return EM_TRUE;
 }
 EM_BOOL touchcb(int kind,const EmscriptenTouchEvent* e,void*) {
@@ -79,7 +113,7 @@ EM_BOOL touchcb(int kind,const EmscriptenTouchEvent* e,void*) {
         current.push_back({p.identifier,(float)p.targetX,(float)p.targetY,false});
     }
     std::sort(current.begin(),current.end(),[](const auto&a,const auto&b){return a.id<b.id;});
-    touch::dispatch(gestures.update(current,emscripten_get_now()/1000.,!ImGui::IsAnyItemActive()));
+    touch::dispatch(gestures.update(current,emscripten_get_now()/1000.,!ui::scroll::drag_control_active()));
     return EM_TRUE;
 }
 // Take both logical CSS size and the TRUE WebGL drawing-buffer size from the
@@ -119,11 +153,19 @@ void frame() {
     touch::dispatch(gestures.tick(now/1000.));
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame(); app::draw(); ImGui::Render();
+    // Observable in browser QA; no DOM UI and no per-event allocations.
+    report_scroll(ui::scroll::state().appliedX, ui::scroll::state().appliedY,
+                  ui::scroll::state().rowsDrawn, ui::scroll::state().dy,
+                  ui::scroll::state().lastPointerX,ui::scroll::state().lastPointerY,
+                  ui::scroll::state().lastMaxY,ui::scroll::state().lastScrollY,
+                  ui::scroll::state().lastInside?1:0,
+                  (int)ui::scroll::state().packets);
     const auto background=ui::palette().base100;
     glViewport(0,0,fw,fh);
     glClearColor(background.r,background.g,background.b,1);
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    bootstrap_frame_ready();
 }
 }
 int main() {
