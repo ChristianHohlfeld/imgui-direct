@@ -32,7 +32,17 @@ inline void begin_frame(){state().next_frame();}
 // Remaining pixels naturally chain to the parent when the child hits its edge.
 // Avoids ImGui's 5-lines-per-wheel multiplier, and double interpolation.
 inline void apply(){
-    if(!ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+    // Native trackpads scroll the surface under the pointer, even when a
+    // slider, button or text box was focused last frame. IsWindowHovered()
+    // can return false for active/overlapped child items and cause lost
+    // wheel packets (felt as intermittent scroll lag). Use the actual
+    // viewport geometry instead, with innermost-to-parent dispatch order.
+    const ImVec2 pointer=ImGui::GetMousePos();
+    const ImVec2 origin=ImGui::GetWindowPos();
+    const ImVec2 dimensions=ImGui::GetWindowSize();
+    if(!std::isfinite(pointer.x)||!std::isfinite(pointer.y)||
+       pointer.x<origin.x||pointer.y<origin.y||
+       pointer.x>=origin.x+dimensions.x||pointer.y>=origin.y+dimensions.y)
         return;
     auto& q=state();
     if(q.dy!=0.f && ImGui::GetScrollMaxY()>0.f){
