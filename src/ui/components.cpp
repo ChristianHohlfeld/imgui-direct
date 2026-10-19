@@ -100,6 +100,13 @@ Interaction last_interaction(bool disabled) {
     return {ImGui::IsItemHovered(),ImGui::IsItemActive(),ImGui::IsItemFocused(),
             ImGui::IsItemActivated(),disabled};
 }
+void Title(const char* value){
+    ImGui::PushStyleColor(ImGuiCol_Text,vec(palette().baseContent));
+    ImGui::PushFont(nullptr,25.f);
+    ImGui::TextUnformatted(value?value:"");
+    ImGui::PopFont();
+    ImGui::PopStyleColor();
+}
 void Heading(const char* value){
     ImGui::PushStyleColor(ImGuiCol_Text,vec(palette().baseContent));
     ImGui::SetWindowFontScale(1.23f);

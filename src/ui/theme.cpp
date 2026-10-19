@@ -76,7 +76,7 @@ void apply() {
     s.ScrollbarSize=touch?12.f:10.f;
     s.GrabMinSize=touch?21.f:14.f;
     s.TouchExtraPadding=ImVec2(touch?5.f:0.f,touch?4.f:0.f);
-    s.FontSizeBase=touch?16.f:15.f;
+    s.FontSizeBase=touch?16.f:16.f;
     s.FontScaleMain=fontScale;
     s.ScaleAllSizes(fontScale);
 }

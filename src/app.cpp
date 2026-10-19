@@ -27,35 +27,37 @@ void introduction(const char* title,const char* description){
 void buttons(bool narrow){
     if(ui::BeginCard("##buttons")){
         introduction("Buttons","Eine klare Hierarchie für jede Aktion.");
-        ui::Options opt;opt.fullWidth=narrow;
-        if(ui::Button("Primär",opt))++d.clicks;
-        if(!narrow)ImGui::SameLine();
+        ui::Options opt;
+        const float half=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
+        const ImVec2 size=narrow?ImVec2(half,0.f):ImVec2(0.f,0.f);
+        if(ui::Button("Primär",opt,size))++d.clicks;
+        ImGui::SameLine();
         opt.variant=ui::Variant::Secondary;
-        if(ui::Button("Sekundär",opt))++d.clicks;
-        if(!narrow)ImGui::SameLine();
-        opt.variant=ui::Variant::Outline;
-        ui::Button("Outline",opt);
+        if(ui::Button("Sekundär",opt,size))++d.clicks;
         space(3);
+        opt.variant=ui::Variant::Outline;
+        ui::Button("Outline",opt,size);
+        ImGui::SameLine();
         opt.variant=ui::Variant::Ghost;
-        ui::Button("Ghost",opt);
-        if(!narrow)ImGui::SameLine();
+        ui::Button("Ghost",opt,size);
+        space(3);
         opt.variant=ui::Variant::Soft;
-        ui::Button("Soft",opt);
-        if(!narrow)ImGui::SameLine();
+        ui::Button("Soft",opt,size);
+        ImGui::SameLine();
         opt.variant=ui::Variant::Error;
-        ui::Button("Entfernen",opt);
-        space(7);ui::Divider();space(5);
+        ui::Button("Entfernen",opt,size);
+        space(6);ui::Divider();space(4);
         ui::Muted("Zustände");
         opt.variant=ui::Variant::Secondary;
         opt.state.loading=true;
-        ui::Button("Wird geladen",opt);
-        if(!narrow)ImGui::SameLine();
+        ui::Button("Lädt ...",opt,size);
+        ImGui::SameLine();
         opt.state={};opt.state.disabled=true;
-        ui::Button("Deaktiviert",opt);
-        space();
+        ui::Button("Deaktiviert",opt,size);
+        space(3);
         opt.state={};opt.state.selected=true;
         opt.variant=ui::Variant::Outline;
-        ui::Button("Ausgewählt",opt);
+        ui::Button("Ausgewählt",opt,size);
     }
     ui::EndCard();
 }
@@ -179,12 +181,12 @@ void app::draw(){
     ImGui::Begin("##component-gallery",nullptr,ImGuiWindowFlags_NoTitleBar|
         ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings);
-    ui::Heading("Komponenten.");
+    ui::Title("Komponenten");
     ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
-    space(12);
+    space(8);
     const char* tabs[]={"Buttons","Formulare","Design"};
     ui::Tabs("##gallery-nav",tabs,3,&d.page);
-    space(13);
+    space(9);
     if(d.page==0){
         introduction("Grundelemente","Alles, was eine klare Oberfläche braucht.");
         const bool columns=!narrow&&ImGui::GetContentRegionAvail().x>720.f;
