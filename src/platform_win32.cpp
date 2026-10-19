@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "ui/theme.hpp"
 // Dear ImGui: standalone example application for Windows API + OpenGL
 
 // Learn about Dear ImGui:
@@ -113,17 +114,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow)
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;   // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;    // Enable Gamepad Controls
 
-    // Setup Dear ImGui style
-    ImGuiStyle& style = ImGui::GetStyle();
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
-    //style.FontSizeBase = 16.0f;           // Default to 13.0f when unspecified, which allows crisp legacy font for non-4K screens.
-    style.FrameRounding = 3.0f;
-    style.GrabRounding = 3.0f;
-
-    // Setup scaling
-    style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-    style.FontScaleDpi = main_scale;        // Set initial font scale. (in docking branch: using io.ConfigDpiScaleFonts=true automatically overrides this for every window depending on the current monitor)
+    // UI styling and scale are owned exclusively by src/ui/theme.cpp.
+    // Physical desktop viewport coordinates need DPI-aware touch targets/fonts.
+    ui::set_scale(main_scale);
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_InitForOpenGL(hwnd);

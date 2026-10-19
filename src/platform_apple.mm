@@ -113,13 +113,7 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-    // Setup Dear ImGui style
-    ImGuiStyle& style = ImGui::GetStyle();
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
-    //style.FontSizeBase = 16.0f;           // Default to 13.0f when unspecified, which allows crisp legacy font for non-4K screens.
-    style.FrameRounding = 3.0f;
-    style.GrabRounding = 3.0f;
+    // Native theme is installed by app::setup(); don't overwrite it here.
 
     // Setup Renderer backend
     ImGui_ImplMetal_Init(_device);
