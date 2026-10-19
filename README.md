@@ -6,6 +6,11 @@ Dear ImGui upstream version is pinned to commit `c1aaac65e896a45f81f47a4d68f9959
 
 ## Windows
 
+**Native GUI executable:** opens only the ImGui application, without a background console.
+**Alt+Enter** toggles borderless, monitor-sized fullscreen and restores the previous
+window position/size (including maximized state). No exclusive mode switch,
+extra library, or recreated OpenGL context.
+
 Install Visual Studio 2022/2026 with **Desktop development with C++** and CMake tools, and Git. Open a new terminal; `cmake --version` must work. Run **from this repository**, not `C:\Users\chris`:
 
 ```powershell
@@ -17,7 +22,7 @@ cmake --build build --config Release
 .\build\Release\imgui_direct.exe
 ```
 
-For a **ready-built Windows .exe without installing CMake**, open [Actions > Native C++ builds](https://github.com/ChristianHohlfeld/imgui-direct/actions/workflows/native.yml), select the latest successful run, and download the artifact `imgui-direct-windows-x64` at the bottom of the run page. Extract and run the executable.
+For a **ready-built Windows .exe without installing CMake**, open [Actions > Native C++ builds](https://github.com/ChristianHohlfeld/imgui-direct/actions/workflows/native.yml), select the latest successful run, and download the artifact `imgui-direct-windows-x64` at the bottom of the run page. Extract and double-click the executable. **Download the latest successful build**; older artifacts still contain the console window.
 
 If `cmake` is not found: `winget install Kitware.CMake`, then restart the terminal. Visual Studio C++ toolchain is also required.
 

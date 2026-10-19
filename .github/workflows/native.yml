@@ -9,6 +9,15 @@ jobs:
       - uses: actions/checkout@v4
       - run: cmake -S . -B build -A x64
       - run: cmake --build build --config Release --parallel 4
+      - name: Assert Windows GUI subsystem (no console)
+        shell: pwsh
+        run: |
+          $exe = [IO.File]::ReadAllBytes("build/Release/imgui_direct.exe")
+          $peOffset = [BitConverter]::ToInt32($exe, 0x3c)
+          $subsystem = [BitConverter]::ToInt16($exe, $peOffset + 24 + 68)
+          if ($subsystem -ne 2) {
+            throw "Expected Windows GUI subsystem (2), actual subsystem: $subsystem"
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: imgui-direct-windows-x64

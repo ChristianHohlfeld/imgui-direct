@@ -22,7 +22,8 @@ if(EMSCRIPTEN)
     "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/shell.html")
   set_target_properties(imgui_direct PROPERTIES OUTPUT_NAME index SUFFIX ".html")
 elseif(WIN32)
-  add_executable(imgui_direct src/app.cpp src/platform_win32.cpp
+  # Windows GUI subsystem: no console window, while retaining direct Win32/WGL.
+  add_executable(imgui_direct WIN32 src/app.cpp src/platform_win32.cpp
     "${IMGUI}/backends/imgui_impl_win32.cpp"
     "${IMGUI}/backends/imgui_impl_opengl3.cpp")
   target_link_libraries(imgui_direct PRIVATE opengl32 user32 gdi32)

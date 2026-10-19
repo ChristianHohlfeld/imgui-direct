@@ -19,6 +19,7 @@
 #include <GL/gl.h>
 #include <tchar.h>
 #include <stdio.h>
+#include <windowsx.h>
 
 // Data stored per platform window
 struct WGL_WindowData { HDC hDC; };
@@ -28,6 +29,43 @@ static HGLRC            g_hRC;          // Rendering context
 static WGL_WindowData   g_MainWindow;
 static int              g_Width;
 static int              g_Height;
+static bool             g_Fullscreen = false;
+static LONG_PTR         g_WindowedStyle = 0;
+static WINDOWPLACEMENT  g_WindowedPlacement = { sizeof(WINDOWPLACEMENT) };
+
+// Native borderless fullscreen: reuse the existing HWND/WGL context without
+// changing display modes. Preserve placement (including maximized state) and
+// target the monitor containing the current window.
+static void ToggleFullscreen(HWND hwnd)
+{
+    if (!g_Fullscreen)
+    {
+        WINDOWPLACEMENT placement = { sizeof(WINDOWPLACEMENT) };
+        if (!::GetWindowPlacement(hwnd, &placement))
+            return;
+        MONITORINFO monitor = { sizeof(MONITORINFO) };
+        if (!::GetMonitorInfoW(::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitor))
+            return;
+
+        g_WindowedPlacement = placement;
+        g_WindowedStyle = ::GetWindowLongPtrW(hwnd, GWL_STYLE);
+        ::SetWindowLongPtrW(hwnd, GWL_STYLE,
+            (g_WindowedStyle & ~static_cast<LONG_PTR>(WS_OVERLAPPEDWINDOW)) | WS_POPUP);
+        const RECT& r = monitor.rcMonitor;
+        ::SetWindowPos(hwnd, HWND_TOP, r.left, r.top, r.right - r.left, r.bottom - r.top,
+                       SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        g_Fullscreen = true;
+    }
+    else
+    {
+        ::SetWindowLongPtrW(hwnd, GWL_STYLE, g_WindowedStyle);
+        ::SetWindowPlacement(hwnd, &g_WindowedPlacement);
+        ::SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                       SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                       SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        g_Fullscreen = false;
+    }
+}
 
 // Forward declarations of helper functions
 bool CreateDeviceWGL(HWND hWnd, WGL_WindowData* data);
@@ -36,16 +74,16 @@ void ResetDeviceWGL();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // Main code
-int main(int, char**)
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow)
 {
     // Make process DPI aware and obtain main monitor scale
     ImGui_ImplWin32_EnableDpiAwareness();
     float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
 
     // Create application window
-    WNDCLASSEXW wc = { sizeof(wc), CS_OWNDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
+    WNDCLASSEXW wc = { sizeof(wc), CS_OWNDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Direct", nullptr };
     ::RegisterClassExW(&wc);
-    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui Win32+OpenGL3 Example", WS_OVERLAPPEDWINDOW, 100, 100, (int)(1280 * main_scale), (int)(800 * main_scale), nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"ImGui Direct", WS_OVERLAPPEDWINDOW, 100, 100, (int)(1280 * main_scale), (int)(800 * main_scale), nullptr, nullptr, wc.hInstance, nullptr);
 
     // Initialize OpenGL
     if (!CreateDeviceWGL(hwnd, &g_MainWindow))
@@ -57,8 +95,14 @@ int main(int, char**)
     }
     wglMakeCurrent(g_MainWindow.hDC, g_hRC);
 
+    // The renderer receives a correct client size from the first frame onward.
+    RECT client = {};
+    ::GetClientRect(hwnd, &client);
+    g_Width = client.right - client.left;
+    g_Height = client.bottom - client.top;
+
     // Show the window
-    ::ShowWindow(hwnd, SW_SHOWDEFAULT);
+    ::ShowWindow(hwnd, nCmdShow);
     ::UpdateWindow(hwnd);
 
     // Setup Dear ImGui context
@@ -133,7 +177,7 @@ int main(int, char**)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
-    app::draw();
+        app::draw();
 
         // Rendering
         ImGui::Render();
@@ -247,6 +291,17 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    // Alt+Enter is a window-manager shortcut, never a widget action.
+    // Bit 29: Alt is held; bit 30: key auto-repeat. Ignore repeats.
+    if (msg == WM_SYSKEYDOWN && wParam == VK_RETURN && (lParam & (1L << 29)))
+    {
+        if (!(lParam & (1L << 30)))
+            ToggleFullscreen(hWnd);
+        return 0;
+    }
+    if (msg == WM_SYSKEYUP && wParam == VK_RETURN && (lParam & (1L << 29)))
+        return 0;
+
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
