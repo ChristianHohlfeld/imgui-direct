@@ -202,6 +202,7 @@ void app::zoom(float ratio){ui::zoom(ratio);}
 void app::draw(){
     ui::begin_frame();
     ui::scroll::begin_frame();
+    ui::scroll::dispatch_before_begin(); // same-frame native pixel response
     auto& io=ImGui::GetIO();
     if(io.DisplaySize.x<=0||io.DisplaySize.y<=0)return;
     const bool narrow=io.DisplaySize.x<760.f;

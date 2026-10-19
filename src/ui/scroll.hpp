@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include "imgui.h"
+#include "imgui_internal.h" // Pinned Dear ImGui 1.93: pre-Begin scroll targets avoid a 1-frame delay.
 namespace ui::scroll {
 enum class Unit { Pixel=0, Line=1, Page=2 };
 inline float to_pixels(float delta, Unit unit, float line=20.f, float page=760.f) {
@@ -35,6 +36,36 @@ inline void add_wheel(float dx,float dy,Unit units,float line=20.f,float page=76
     add(to_pixels(dx,units,line,page),to_pixels(dy,units,line,page));
 }
 inline void begin_frame(){state().next_frame();}
+// MouseWheel must be applied BEFORE Begin() lays out the window this
+// frame. Calling SetScrollY() after drawing schedules the next frame and
+// produces perceptible lag at 60/120 Hz. Dear ImGui's internal hovered
+// window pointer is explicitly version-pinned by CMake and has no new
+// runtime dependency. We still retain the public-API fallback below.
+inline void dispatch_before_begin(){
+    auto& q=state();
+    if(q.dy==0.f && q.dx==0.f)return;
+    if(!GImGui)return;
+    for(ImGuiWindow* win=GImGui->HoveredWindow;win;win=win->ParentWindow){
+        if(win->Flags & ImGuiWindowFlags_NoScrollWithMouse)continue;
+        if(q.dy!=0.f && win->ScrollMax.y>0.f){
+            const float desired=std::clamp(win->Scroll.y+q.dy,0.f,win->ScrollMax.y);
+            const float moved=desired-win->Scroll.y;
+            if(moved!=0.f) {
+                ImGui::SetScrollY(win,desired);
+                q.dy-=moved;q.appliedY+=moved;
+            }
+        }
+        if(q.dx!=0.f && win->ScrollMax.x>0.f){
+            const float desired=std::clamp(win->Scroll.x+q.dx,0.f,win->ScrollMax.x);
+            const float moved=desired-win->Scroll.x;
+            if(moved!=0.f){
+                ImGui::SetScrollX(win,desired);
+                q.dx-=moved;q.appliedX+=moved;
+            }
+        }
+        if(q.dx==0.f && q.dy==0.f)break;
+    }
+}
 // Invoke in the innermost scrollable window first, then the outer viewport.
 // Remaining pixels naturally chain to the parent when the child hits its edge.
 // Avoids ImGui's 5-lines-per-wheel multiplier, and double interpolation.
