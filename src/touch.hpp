@@ -15,7 +15,7 @@ class Controller {
     Contact first_{};
     float x0_=0,y0_=0,cx_=0,cy_=0,separation_=0;
     float velocity_x_=0,velocity_y_=0;
-    double down_at_=0,last_at_=0;
+    double down_at_=0,last_at_=0,last_tick_at_=-1;
     bool holding_=false, long_pressed_=false, momentum_=false;
     static float distance(Contact a,Contact b) {return std::hypot(a.x-b.x,a.y-b.y);}
     static float capped(float v,float cap) {return std::clamp(v,-cap,cap);}
@@ -28,12 +28,14 @@ public:
         Events out;
         now=std::max(now,last_at_);
         const float dt=(float)std::max(.001,now-last_at_);
+        const double idleBeforeEvent=now-last_at_;
         last_at_=now;
         auto send=[&](Type t,float x,float y,float value=0,float second=0,bool pen=false){out.push_back({t,x,y,value,second,pen});};
         if(contacts.empty()) {
             if(mode_==Mode::Pointer)send(Type::Up,first_.x,first_.y,0,0,first_.pen);
             if(mode_==Mode::Scroll || mode_==Mode::Multi)
                 momentum_=std::hypot(velocity_x_,velocity_y_)>.6f;
+            if(mode_==Mode::Scroll && idleBeforeEvent>.1)momentum_=false;
             mode_=Mode::Idle;holding_=false;
             return out;
         }
@@ -82,6 +84,9 @@ public:
                 send(Type::Up,first_.x,first_.y,0,0,first_.pen);
                 mode_=Mode::Scroll;holding_=false;
                 velocity_x_=velocity_y_=0;
+                // Transfer the complete gesture delta, including the initial
+                // touch slop, to scrolling. Don't lose the first 13 points.
+                first_.x=x0_;first_.y=y0_;
             } else {
                 first_=p;
                 send(Type::Move,p.x,p.y,0,0,p.pen);
@@ -91,16 +96,23 @@ public:
         if(mode_==Mode::Scroll) {
             const float dy=p.y-first_.y,dx=p.x-first_.x;
             send(Type::Scroll,p.x,p.y,-dx/60.f,-dy/60.f);
-            velocity_x_=capped(-dx/dt/60.f,20.f);
-            velocity_y_=capped(-dy/dt/60.f,20.f);
+            // Velocity filtering applies ONLY to finger flicks, never to
+            // native trackpad/macOS momentum events, which are already shaped.
+            const float vx=capped(-dx/dt/60.f,90.f);
+            const float vy=capped(-dy/dt/60.f,90.f);
+            velocity_x_=velocity_x_*.35f+vx*.65f;
+            velocity_y_=velocity_y_*.35f+vy*.65f;
             first_=p;
         }
         return out;
     }
     Events tick(double now) {
         Events out;
-        double dt=std::clamp(now-last_at_,0.,.050);
-        last_at_=now;
+        // Frame ticks and pointer events MUST have independent clocks:
+        // mixing them silently biases gesture velocity and makes inertia
+        // dependent on display refresh rate.
+        double dt=last_tick_at_<0 ? 0 : std::clamp(now-last_tick_at_,0.,.050);
+        last_tick_at_=now;
         if(mode_==Mode::Pointer&&holding_&&!long_pressed_&&
            now-down_at_>=.55&&std::hypot(first_.x-x0_,first_.y-y0_)<=10.f) {
             // Long press opens ImGui's right-button context menu.
@@ -109,11 +121,15 @@ public:
             holding_=false;long_pressed_=true;mode_=Mode::Suppressed;
         }
         if(mode_==Mode::Idle&&momentum_&&dt>0) {
-            float friction=std::exp(-(float)dt*7.f);
-            float dx=velocity_x_*(float)dt,dy=velocity_y_*(float)dt;
-            out.push_back({Type::Scroll,cx_,cy_,dx,dy});
-            velocity_x_*=friction; velocity_y_*=friction;
-            if(std::hypot(velocity_x_,velocity_y_)<.05f)momentum_=false;
+            constexpr float frictionRate=4.6f;
+            const float drag=std::exp(-frictionRate*(float)dt);
+            const float integrated=(1.f-drag)/frictionRate;
+            // Analytically integrated exponential decay is frame-rate
+            // invariant (60/120 Hz produce the same travelled distance).
+            out.push_back({Type::Scroll,first_.x,first_.y,
+                           velocity_x_*integrated,velocity_y_*integrated});
+            velocity_x_*=drag;velocity_y_*=drag;
+            if(std::hypot(velocity_x_,velocity_y_)<.065f)momentum_=false;
         }
         return out;
     }
