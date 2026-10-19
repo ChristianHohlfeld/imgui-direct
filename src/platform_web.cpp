@@ -83,6 +83,8 @@ EM_BOOL wheelcb(int,const EmscriptenWheelEvent* e,void*) {
     const auto unit=e->deltaMode==DOM_DELTA_LINE?ui::scroll::Unit::Line:
                     e->deltaMode==DOM_DELTA_PAGE?ui::scroll::Unit::Page:
                     ui::scroll::Unit::Pixel;
+    diagnostic_wheel((float)e->deltaX,(float)e->deltaY,
+                     (float)e->mouse.targetX,(float)e->mouse.targetY,e->deltaMode);
     const float page=std::max(200.f,ImGui::GetIO().DisplaySize.y*.90f);
     if(e->mouse.ctrlKey) {
         // Browser trackpad pinch is exposed as Ctrl+wheel.

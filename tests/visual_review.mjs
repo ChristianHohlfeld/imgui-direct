@@ -55,31 +55,34 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  // Exact native devicePixelContentBox when trustworthy; the fallback is
  // necessary on browsers/emulators which report CSS units from the observer.
  if(!state.metrics?.exact)console.log(name+' fallback: '+state.metrics?.source);
- // Native-feeling scrolling is a contract: a 90px Chrome trackpad-like
- // wheel event must cause 90px of C++ list movement, with no second
- // multiplier or delayed easing.
+ // Assert the DOM event's actual CSS delta, not Playwright's requested
+ // PHYSICAL wheel distance (the two differ under simulated DPR > 1).
  if(name==='mobile'){
    await page.mouse.move(180,650);
    const start=await page.evaluate(()=>window.__imguiScrollTotal||0);
    await page.mouse.wheel(0,90);
-   try {
-     await page.waitForFunction(start=>(window.__imguiScrollTotal||0)>start+80,
-                                start,{timeout:6000});
-   } catch(error) {
-     const details=await page.evaluate(()=>({
-       wheel:window.__imguiRawWheel,
-       scroll:window.__imguiScroll,
-       totals:window.__imguiScrollTotal,
-       debug:window.__imguiScrollDebug,
-       canvas:document.getElementById('canvas')?.getBoundingClientRect().toJSON()
-     }));
-     console.log('SCROLL DEBUG',JSON.stringify(details));
-     throw error;
-   }
-   await page.waitForTimeout(160);
-   const moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,start);
-   console.log('scroll-move',JSON.stringify({request:90,moved}));
-   if(Math.abs(moved-90)>1.2)failures.push('exact Chrome wheel delta: '+moved);
+   await page.waitForFunction(()=>window.__imguiRawWheel?.received>0,
+                              null,{timeout:6000});
+   const actual=await page.evaluate(()=>window.__imguiRawWheel.y);
+   await page.waitForFunction(({start,actual})=>
+     (window.__imguiScrollTotal||0)>=start+actual-1,
+     {start,actual},{timeout:6000});
+   let moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,start);
+   console.log('real-wheel',JSON.stringify({physicalRequest:90,cssReceived:actual,moved}));
+   if(Math.abs(moved-actual)>1.2)failures.push('real Chrome wheel delta mismatch: '+moved+' vs '+actual);
+
+   // Explicitly emit a CSS-pixel precise WheelEvent to ensure 90 really
+   // means 90 logical layout pixels (no double ImGui wheel scaling).
+   const secondStart=await page.evaluate(()=>window.__imguiScrollTotal||0);
+   await page.evaluate(()=>document.getElementById('canvas').dispatchEvent(
+      new WheelEvent('wheel',{deltaX:0,deltaY:90,deltaMode:0,
+                              clientX:180,clientY:650,bubbles:true,cancelable:true})));
+   await page.waitForFunction(start=>
+       (window.__imguiScrollTotal||0)>=start+89,
+       secondStart,{timeout:6000});
+   moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,secondStart);
+   console.log('synthetic-css-wheel',JSON.stringify({expected:90,moved}));
+   if(Math.abs(moved-90)>1.2)failures.push('1:1 DOM pixel delta mismatch: '+moved);
  }
  if(name==='desktop') {
   await page.mouse.click(730,136);
@@ -118,10 +121,16 @@ try {
    if(visible>55)failures.push('list virtualization submitted '+visible+' rows');
    await listPage.mouse.move(180,580);
    await listPage.mouse.wheel(0,117);
-   await listPage.waitForFunction(start=>(window.__imguiScrollTotal||0)>start+110,
-                                  before,{timeout:4500});
-   const movement=await listPage.evaluate(start=>(window.__imguiScrollTotal||0)-start,before);
-   if(Math.abs(movement-117)>1.2)failures.push('list precise wheel: '+movement);
+   await listPage.waitForFunction(()=>window.__imguiRawWheel?.received>0,
+                                  null,{timeout:5000});
+   const actualDelta=await listPage.evaluate(()=>window.__imguiRawWheel.y);
+   await listPage.waitForFunction(({before,actualDelta})=>
+       (window.__imguiScrollTotal||0)>=before+actualDelta-1,
+       {before,actualDelta},{timeout:6000});
+   const movement=await listPage.evaluate(start=>
+       (window.__imguiScrollTotal||0)-start,before);
+   if(Math.abs(movement-actualDelta)>1.2)
+       failures.push('list precise wheel: '+movement+' vs '+actualDelta);
    await listPage.screenshot({path:'visual-review/virtual-list.png'});
    console.log('virtual-list',JSON.stringify({total:100000,visible,movement}));
  }finally{await listPage.close();}
