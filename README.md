@@ -45,10 +45,12 @@ dependencies. One semantic `Palette` defines base, content, primary,
 secondary, neutral and feedback colors. Built-in *Slate Dark* and *Slate Light*
 can be switched live, or replaced with a custom C++ palette.
 
-The first ten primitives are text/heading, card, button variants,
-input, checkbox, switch, slider, tabs, badge and alert. All controls use
-the same mobile-aware metrics (touch targets and margins).
-See [docs/ui.md](docs/ui.md) for the API and examples.
+The native component kit now includes buttons with focused/hover/pressed/
+selected/disabled/loading states, tabs, cards, input, textarea, select,
+checkbox, radio, switch, slider, progress, badges, alerts and modals.
+It shares five sizes and native touch-first minimum targets.
+The public demo is a clean, product-like interface with no backend or debug
+information. See [docs/ui.md](docs/ui.md) for examples and component states.
 
 ## Mobile input
 

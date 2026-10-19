@@ -81,4 +81,8 @@ if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME ST
   add_executable(ui_theme_test tests/ui_theme_test.cpp)
   target_include_directories(ui_theme_test PRIVATE src)
   add_test(NAME ui_palette COMMAND ui_theme_test)
+  add_executable(ui_component_test tests/ui_component_test.cpp)
+  target_include_directories(ui_component_test PRIVATE src)
+  target_link_libraries(ui_component_test PRIVATE ui_foundation)
+  add_test(NAME ui_component_states COMMAND ui_component_test)
 endif()
