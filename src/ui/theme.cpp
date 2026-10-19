@@ -10,9 +10,11 @@ Palette active=slateDark;
 bool dark=true;
 bool touch=false;
 float fontScale=1.f;
+bool themeDirty=false;
 
 ImVec4 v(Color c) {return {c.r,c.g,c.b,c.a};}
 void apply() {
+    themeDirty=false;
     // All colors and dimensions come from one source of truth. Never use
     // StyleColorsDark()/Light() per-widget, nor scale styles cumulatively.
     if(dark)ImGui::StyleColorsDark();else ImGui::StyleColorsLight();
@@ -85,12 +87,13 @@ void set_mode(Mode next) {
     currentMode=next;
     dark=next==Mode::Dark;
     active=dark?slateDark:slateLight;
-    apply();
+    themeDirty=true;
 }
 void set_custom_palette(const Palette& custom,bool darkBase) {
-    currentMode=Mode::Custom; active=custom;dark=darkBase;apply();
+    currentMode=Mode::Custom; active=custom;dark=darkBase;themeDirty=true;
 }
-void initialize(){set_mode(Mode::Dark);}
+void initialize(){currentMode=Mode::Dark;dark=true;active=slateDark;apply();}
+void begin_frame(){if(themeDirty)apply();}
 void set_touch(bool value){if(touch==value)return;touch=value;apply();}
 bool is_touch(){return touch;}
 float scale(){return fontScale;}

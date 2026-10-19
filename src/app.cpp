@@ -129,6 +129,7 @@ void app::keyboard_height(float value){keyboard=std::max(0.f,value);}
 void app::request_text_focus(){requestTextFocus=true;s.tab=1;}
 void app::zoom(float ratio){ui::zoom(ratio);}
 void app::draw() {
+    ui::begin_frame();
     auto& io=ImGui::GetIO();
     if(io.DisplaySize.x<=0.f||io.DisplaySize.y<=0.f)return;
     const bool compact=ui::is_touch() || io.DisplaySize.x<720.f;
