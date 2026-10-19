@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "touch_imgui.hpp"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include <emscripten.h>
@@ -8,6 +9,20 @@
 #include <cstring>
 namespace {
 double previous=0;
+double lastTouch=-10000.;
+bool isTouchDevice=false;
+touch::Controller gestures;
+// One browser-native input node is only an IME bridge, never an HTML UI.
+EM_JS(void, updateNativeTextRect,(float x,float y,float width,float height,int visible),{
+    const e=document.getElementById('native-input');
+    if(!e)return;
+    e.style.display=visible?'block':'none';
+    if(visible){
+        e.style.left=x+'px'; e.style.top=y+'px';
+        e.style.width=width+'px'; e.style.height=height+'px';
+    } else if(document.activeElement===e) e.blur();
+});
+
 ImGuiKey mapkey(const char* k) {
     if(std::strncmp(k,"Key",3)==0 && std::strlen(k)==4 && k[3]>='A'&&k[3]<='Z') return (ImGuiKey)(ImGuiKey_A+k[3]-'A');
     if(std::strncmp(k,"Digit",5)==0 && std::strlen(k)==6 && k[5]>='0'&&k[5]<='9') return (ImGuiKey)(ImGuiKey_0+k[5]-'0');
@@ -40,6 +55,7 @@ EM_BOOL keycb(int kind,const EmscriptenKeyboardEvent* e,void*) {
     return io.WantCaptureKeyboard&&!e->ctrlKey&&!e->metaKey;
 }
 EM_BOOL mousecb(int kind,const EmscriptenMouseEvent* e,void*) {
+    if(emscripten_get_now()-lastTouch<700.)return EM_TRUE; // suppress synthesized touch mouse events
     auto& io=ImGui::GetIO();
     io.AddMousePosEvent((float)e->targetX,(float)e->targetY);
     if(kind==EMSCRIPTEN_EVENT_MOUSEDOWN || kind==EMSCRIPTEN_EVENT_MOUSEUP) {
@@ -54,13 +70,15 @@ EM_BOOL wheelcb(int,const EmscriptenWheelEvent* e,void*) {
     return EM_TRUE;
 }
 EM_BOOL touchcb(int kind,const EmscriptenTouchEvent* e,void*) {
-    for(int i=0;i<e->numTouches;++i) if(e->touches[i].isChanged) {
-        auto& io=ImGui::GetIO();
-        io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
-        io.AddMousePosEvent((float)e->touches[i].targetX,(float)e->touches[i].targetY);
-        io.AddMouseButtonEvent(0,kind!=EMSCRIPTEN_EVENT_TOUCHEND&&kind!=EMSCRIPTEN_EVENT_TOUCHCANCEL);
-        break;
+    lastTouch=emscripten_get_now();
+    std::vector<touch::Contact> current;
+    for(int i=0;i<e->numTouches;++i) {
+        const auto& p=e->touches[i];
+        if((kind==EMSCRIPTEN_EVENT_TOUCHEND||kind==EMSCRIPTEN_EVENT_TOUCHCANCEL)&&p.isChanged)continue;
+        current.push_back({p.identifier,(float)p.targetX,(float)p.targetY,false});
     }
+    std::sort(current.begin(),current.end(),[](const auto&a,const auto&b){return a.id<b.id;});
+    touch::dispatch(gestures.update(current,emscripten_get_now()/1000.,!ImGui::IsAnyItemActive()));
     return EM_TRUE;
 }
 void frame() {
@@ -77,6 +95,7 @@ void frame() {
     double now=emscripten_get_now();
     io.DeltaTime=previous?std::max(.001f,(float)((now-previous)/1000.)):1.f/60.f;
     previous=now;
+    touch::dispatch(gestures.tick(now/1000.));
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame(); app::draw(); ImGui::Render();
     glViewport(0,0,fw,fh);glClearColor(.065f,.075f,.105f,1);glClear(GL_COLOR_BUFFER_BIT);
@@ -91,6 +110,9 @@ int main() {
     IMGUI_CHECKVERSION(); ImGui::CreateContext();
     ImGui::GetIO().BackendPlatformName="imgui_direct_web";
     app::setup();
+    isTouchDevice=emscripten_run_script_int("('ontouchstart' in window) || navigator.maxTouchPoints>0");
+    app::set_touch(isTouchDevice);
+    if(isTouchDevice) ImGui::GetIO().ConfigFlags|=ImGuiConfigFlags_IsTouchScreen;
     if(!ImGui_ImplOpenGL3_Init("#version 300 es")) return 2;
     emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW,nullptr,true,keycb);
     emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW,nullptr,true,keycb);
@@ -103,4 +125,17 @@ int main() {
     emscripten_set_touchend_callback("#canvas",nullptr,true,touchcb);
     emscripten_set_touchcancel_callback("#canvas",nullptr,true,touchcb);
     emscripten_set_main_loop(frame,0,true);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void mobile_insert_utf8(const char* value) {
+    if(value)ImGui::GetIO().AddInputCharactersUTF8(value);
+}
+extern "C" EMSCRIPTEN_KEEPALIVE void mobile_backspace() {
+    auto& io=ImGui::GetIO();
+    io.AddKeyEvent(ImGuiKey_Backspace,true);
+    io.AddKeyEvent(ImGuiKey_Backspace,false);
+}
+extern "C" EMSCRIPTEN_KEEPALIVE void mobile_focus() {app::request_text_focus();}
+extern "C" void browser_input_rect(float x,float y,float width,float height) {
+    updateNativeTextRect(x,y,width,height,isTouchDevice?1:0);
 }

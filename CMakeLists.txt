@@ -19,7 +19,9 @@ if(EMSCRIPTEN)
   target_link_options(imgui_direct PRIVATE
     "SHELL:-s WASM=1" "SHELL:-s MIN_WEBGL_VERSION=2"
     "SHELL:-s MAX_WEBGL_VERSION=2" "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-    "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/shell.html")
+    "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/shell.html"
+    "SHELL:-s EXPORTED_FUNCTIONS=_main,_mobile_insert_utf8,_mobile_backspace,_mobile_focus"
+    "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall")
   set_target_properties(imgui_direct PROPERTIES OUTPUT_NAME index SUFFIX ".html")
 elseif(WIN32)
   # Windows GUI subsystem: no console window, while retaining direct Win32/WGL.
@@ -62,3 +64,11 @@ else()
 endif()
 target_link_libraries(imgui_direct PRIVATE imgui_core)
 target_include_directories(imgui_direct PRIVATE src)
+
+# Pure C++ deterministic touch tests (no test framework or new dependencies).
+include(CTest)
+if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  add_executable(touch_test tests/touch_test.cpp)
+  target_include_directories(touch_test PRIVATE src)
+  add_test(NAME touch_gestures COMMAND touch_test)
+endif()

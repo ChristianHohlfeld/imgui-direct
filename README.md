@@ -38,6 +38,32 @@ python3 -m http.server 8000 -d build-web
 
 Open http://localhost:8000/index.html (do not use file://). [GitHub Actions](https://github.com/ChristianHohlfeld/imgui-direct/actions) builds and attempts to publish to [GitHub Pages](https://christianhohlfeld.github.io/imgui-direct/). Pages source must be set to **GitHub Actions** in Settings > Pages. The web `build` job uploads a standalone `imgui-direct-web-wasm` artifact even if Pages is disabled. The `deploy` job will fail until **Settings > Pages > Build and deployment > Source: GitHub Actions** is enabled. After enabling, re-run the failed deployment job or manually trigger the workflow. Do not consider the demo live until deployment passes.
 
+## Mobile input
+
+All touch behavior lives in `src/touch.hpp`, independent of UIKit, Android
+and Emscripten. It implements direct manipulation, one-finger swipe to scroll
+outside active controls, two-finger scrolling, pinch-to-zoom, long-press context
+click and decaying scroll inertia. It intentionally suppresses accidental
+clicks when fingers enter/leave multi-touch. Touch targets and typography
+scale for mobile, including safe areas and keyboard occlusion.
+
+- **iPad / iPhone:** UIKit delivers native touch/Pencil, pointer hover,
+  real keyboard input through an offscreen native UITextView, clipboard via
+  UIPasteboard, Metal renderer. Hardware keyboard integration is native OS
+  input. No webview.
+- **Android:** NDK/NativeActivity/EGL; touch gestures and state stay in C++.
+  A tiny Java platform class supplies Android's required InputConnection/IME
+  and system clipboard only (without Gradle or third-party frameworks).
+  The signed **debug APK** is a downloadable GitHub Actions artifact.
+- **Browser:** WebAssembly/WebGL2; C++ touch engine and a single invisible
+  HTML textarea for the mobile browser's native keyboard/IME. This is an
+  OS/browser integration adapter, not a second HTML UI.
+
+`ctest --test-dir build -C Release --output-on-failure` validates
+gesture transitions on desktop. CI also compiles iOS Simulator, Android ARM64
+and WASM. Real iPad/Android/Safari usability, IME candidates and clipboard
+permission flows require device testing; builds alone cannot certify that.
+
 ## Native other systems
 
 - Linux X11: `sudo apt install libx11-dev libgl-dev ninja-build`, then `cmake -S . -B build -G Ninja && cmake --build build`.
@@ -45,4 +71,4 @@ Open http://localhost:8000/index.html (do not use file://). [GitHub Actions](htt
 - iOS simulator: `cmake -S . -B build-ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator && cmake --build build-ios --config Release` (requires Xcode and signing settings).
 - Android: `cmake -S . -B build-android -G Ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=26 && cmake --build build-android`. The result is a native `.so`; building/installing a signed APK requires Android SDK packaging.
 
-**Limitations:** X11 (not Wayland); mobile text IME/keyboard and browser context restore need work. iOS and Android have not been device-tested. Browser uses Emscripten-generated JavaScript boot code, not a separate HTML UI.
+**Limitations:** Linux X11 (not Wayland); iOS/Android have not been manually device-tested; complex IME composition and web context restoration warrant follow-up QA. Browser uses Emscripten-generated JavaScript boot code, not a separate HTML UI.

@@ -1,8 +1,36 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10131c">
 <title>ImGui Direct · C++ / WASM</title>
-<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10131c;color:white;font-family:system-ui}#canvas{display:block;width:100vw;height:100dvh;touch-action:none;outline:none}#status{position:fixed;bottom:12px;left:12px;background:#202b42;border-radius:6px;padding:8px}#status:empty{display:none}</style></head>
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10131c;color:white;font-family:system-ui}#canvas{display:block;width:100vw;height:100dvh;touch-action:none;outline:none}#status{position:fixed;bottom:12px;left:12px;background:#202b42;border-radius:6px;padding:8px}#status:empty{display:none}#native-input{display:none;position:fixed;margin:0;padding:0;border:0;z-index:3;opacity:.025;resize:none;background:transparent;color:transparent;caret-color:transparent;touch-action:auto;outline:none}
+</style></head>
 <body><canvas id="canvas" tabindex="0"></canvas><div id="status">Loading WebAssembly...</div>
+<textarea id="native-input" autocomplete="on" autocapitalize="sentences" spellcheck="true"></textarea>
 <script>var Module={canvas:document.getElementById('canvas'),onRuntimeInitialized:function(){document.getElementById('status').textContent=''},onAbort:function(x){document.getElementById('status').textContent='WASM error: '+x},printErr:console.error.bind(console)};</script>
+<script>
+(function(){
+  const input=document.getElementById('native-input');
+  let composing=false;
+  const call=(name,arg)=>window.Module && Module.ccall(name,null,arg?['string']:[],arg?[arg]:[]);
+  input.addEventListener('focus',()=>call('mobile_focus'));
+  input.addEventListener('compositionstart',()=>{composing=true});
+  input.addEventListener('compositionend',()=>{
+    composing=false;
+    if(input.value)call('mobile_insert_utf8',input.value);
+    input.value='';
+  });
+  input.addEventListener('beforeinput',e=>{
+    if(!composing && e.inputType==='deleteContentBackward' && !input.value.length){
+      e.preventDefault();call('mobile_backspace');
+    }
+  });
+  input.addEventListener('input',()=>{
+    if(composing)return;
+    if(input.value){call('mobile_insert_utf8',input.value);input.value='';}
+  });
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden) input.blur();
+  });
+})();
+</script>
 {{{ SCRIPT }}}
 </body></html>
