@@ -1,4 +1,5 @@
 #include "ui/theme.hpp"
+#include "ui/font_data.hpp"
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
@@ -59,7 +60,7 @@ void apply() {
     set(ImGuiCol_TableBorderLight,p.base300);
     set(ImGuiCol_TableRowBg,p.base100);
     set(ImGuiCol_TableRowBgAlt,p.base200);
-    s.WindowRounding=12.f;
+    s.WindowRounding=0.f;
     s.ChildRounding=12.f;
     s.PopupRounding=9.f;
     s.FrameRounding=8.f;
@@ -68,14 +69,14 @@ void apply() {
     s.WindowBorderSize=0.f;
     s.ChildBorderSize=1.f;
     s.FrameBorderSize=0.f;
-    s.WindowPadding=ImVec2(touch?16.f:20.f,touch?15.f:18.f);
-    s.FramePadding=ImVec2(touch?14.f:13.f,touch?13.f:9.f);
-    s.ItemSpacing=ImVec2(11.f,touch?14.f:12.f);
+    s.WindowPadding=ImVec2(touch?15.f:20.f,touch?14.f:20.f);
+    s.FramePadding=ImVec2(touch?12.f:13.f,touch?8.f:8.f);
+    s.ItemSpacing=ImVec2(10.f,touch?12.f:12.f);
     s.ItemInnerSpacing=ImVec2(8.f,6.f);
-    s.ScrollbarSize=touch?20.f:14.f;
-    s.GrabMinSize=touch?27.f:14.f;
+    s.ScrollbarSize=touch?12.f:10.f;
+    s.GrabMinSize=touch?21.f:14.f;
     s.TouchExtraPadding=ImVec2(touch?5.f:0.f,touch?4.f:0.f);
-    s.FontSizeBase=touch?18.f:16.f;
+    s.FontSizeBase=touch?16.f:15.f;
     s.FontScaleMain=fontScale;
     s.ScaleAllSizes(fontScale);
 }
@@ -93,7 +94,24 @@ void set_custom_palette(const Palette& custom,bool darkBase) {
     currentMode=Mode::Custom; active=custom;dark=darkBase;themeDirty=true;
 }
 void initialize(){
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;currentMode=Mode::Dark;dark=true;active=slateDark;apply();}
+    ImGuiIO& io=ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    // The default embedded Proggy fonts are programmer fonts and do not match
+    // a normal product UI. Select Inter explicitly; simply adding the font is
+    // insufficient because ImGui may keep its previously created font.
+    ImFontConfig config{};
+    config.FontDataOwnedByAtlas=false;
+    config.PixelSnapH=false;
+    config.OversampleH=3;
+    config.OversampleV=2;
+    io.FontDefault=io.Fonts->AddFontFromMemoryTTF(
+        (void*)inter_font_data,inter_font_size,16.f,&config);
+    IM_ASSERT(io.FontDefault != nullptr);
+    currentMode=Mode::Dark;
+    dark=true;
+    active=slateDark;
+    apply();
+}
 void begin_frame(){if(themeDirty)apply();}
 void set_touch(bool value){if(touch==value)return;touch=value;apply();}
 bool is_touch(){return touch;}
