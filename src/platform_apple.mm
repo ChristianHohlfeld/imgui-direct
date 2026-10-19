@@ -73,6 +73,7 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 - (void)syncKeyboard:(BOOL)shouldShow;
 - (void)keyboardFrameChanged:(NSNotification *)notification;
 - (void)onHover:(UIHoverGestureRecognizer*)recognizer;
+- (void)onIndirectScroll:(UIPanGestureRecognizer*)recognizer;
 #endif
 @property (nonatomic, readonly) MTKView *mtkView;
 @property (nonatomic, strong) id <MTLDevice> device;
@@ -185,6 +186,13 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 
     UIHoverGestureRecognizer* hover=[[UIHoverGestureRecognizer alloc] initWithTarget:self action:@selector(onHover:)];
     [self.view addGestureRecognizer:hover];
+
+    UIPanGestureRecognizer* indirect=[[UIPanGestureRecognizer alloc]
+        initWithTarget:self action:@selector(onIndirectScroll:)];
+    indirect.allowedScrollTypesMask=UIScrollTypeMaskAll;
+    indirect.allowedTouchTypes=@[]; // Only trackpad/wheel, never steal finger gestures.
+    indirect.cancelsTouchesInView=NO;
+    [self.view addGestureRecognizer:indirect];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardFrameChanged:)
         name:UIKeyboardWillChangeFrameNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardFrameChanged:)
@@ -279,6 +287,15 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 {
     std::vector<touch::Contact> points;
     for(UITouch* t in event.allTouches) {
+        if(t.type==UITouchTypeIndirectPointer) {
+            CGPoint p=[t locationInView:self.view];
+            auto& io=ImGui::GetIO();
+            io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+            io.AddMousePosEvent((float)p.x,(float)p.y);
+            io.AddMouseButtonEvent(0,
+                t.phase!=UITouchPhaseEnded&&t.phase!=UITouchPhaseCancelled);
+            continue;
+        }
         if(t.phase==UITouchPhaseEnded||t.phase==UITouchPhaseCancelled) continue;
         CGPoint p=[t locationInView:self.view];
         points.push_back({(std::int64_t)(std::uintptr_t)(__bridge void*)t,
@@ -300,6 +317,17 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
     else {
         CGPoint p=[recognizer locationInView:self.view];
         io.AddMousePosEvent((float)p.x,(float)p.y);
+    }
+}
+-(void)onIndirectScroll:(UIPanGestureRecognizer*)recognizer {
+    if(recognizer.state==UIGestureRecognizerStateBegan ||
+       recognizer.state==UIGestureRecognizerStateChanged) {
+        CGPoint translation=[recognizer translationInView:self.view];
+        if(translation.x!=0 || translation.y!=0) {
+            ImGui::GetIO().AddMouseWheelEvent(
+                (float)-translation.x/60.f,(float)-translation.y/60.f);
+            [recognizer setTranslation:CGPointZero inView:self.view];
+        }
     }
 }
 -(void)syncKeyboard:(BOOL)show {
