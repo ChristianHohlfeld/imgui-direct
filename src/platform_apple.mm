@@ -278,6 +278,10 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 
 #if TARGET_OS_OSX
 
+- (void)dealloc {
+    if(self.scrollMonitor)[NSEvent removeMonitor:self.scrollMonitor];
+}
+
 - (void)viewWillAppear
 {
     [super viewWillAppear];
@@ -286,6 +290,7 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 
 - (void)windowWillClose:(NSNotification *)notification
 {
+    if(self.scrollMonitor){[NSEvent removeMonitor:self.scrollMonitor];self.scrollMonitor=nil;}
     ImGui_ImplMetal_Shutdown();
     ImGui_ImplOSX_Shutdown();
     ImGui::DestroyContext();
@@ -373,9 +378,6 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
     ImGui::GetIO().AddFocusEvent(true);
 }
 -(void)dealloc {
-#if TARGET_OS_OSX
-    if(self.scrollMonitor)[NSEvent removeMonitor:self.scrollMonitor];
-#endif
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     if(gController==self)gController=nil;
 }
