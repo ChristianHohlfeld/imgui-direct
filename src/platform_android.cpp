@@ -1,4 +1,5 @@
 #include "touch_imgui.hpp"
+#include "utf.hpp"
 #include <android/input.h>
 #include <jni.h>
 #include <mutex>
@@ -30,6 +31,20 @@ std::mutex textMutex;
 struct InputMessage {bool backspace;std::string text;};
 std::deque<InputMessage> pendingInput;
 std::string clipboardText;
+std::string fromJString(JNIEnv* env,jstring text) {
+    if(!text)return {};
+    const jsize n=env->GetStringLength(text);
+    const jchar* data=env->GetStringChars(text,nullptr);
+    if(!data)return {};
+    const std::u16string_view value((const char16_t*)data,(size_t)n);
+    std::string result=unicode::utf16_to_utf8(value);
+    env->ReleaseStringChars(text,data);
+    return result;
+}
+jstring toJString(JNIEnv* env,const char* text) {
+    std::u16string value=unicode::utf8_to_utf16(text?text:"");
+    return env->NewString((const jchar*)value.data(),(jsize)value.size());
+}
 bool keyboardVisible=false;
 double clockSeconds() {
     using namespace std::chrono;
@@ -64,9 +79,7 @@ const char* getClipboard(ImGuiContext*) {
         if(m) {
             jstring text=(jstring)e->CallObjectMethod(act,m);
             if(text) {
-                const char* bytes=e->GetStringUTFChars(text,nullptr);
-                clipboardText=bytes?bytes:"";
-                if(bytes)e->ReleaseStringUTFChars(text,bytes);
+                clipboardText=fromJString(e,text);
                 e->DeleteLocalRef(text);
             } else clipboardText.clear();
         }
@@ -79,7 +92,7 @@ void setClipboard(ImGuiContext*,const char* value) {
         jclass cls=e->GetObjectClass(act);
         jmethodID m=e->GetMethodID(cls,"setClipboardText","(Ljava/lang/String;)V");
         if(m) {
-            jstring text=e->NewStringUTF(value?value:"");
+            jstring text=toJString(e,value);
             e->CallVoidMethod(act,m,text);
             e->DeleteLocalRef(text);
         }
@@ -206,10 +219,8 @@ extern "C" void android_main(android_app* a){
 extern "C" JNIEXPORT void JNICALL
 Java_de_imgui_direct_ImGuiInputActivity_nativeText(JNIEnv* env,jclass,jstring jtext) {
     if(!jtext)return;
-    const char* chars=env->GetStringUTFChars(jtext,nullptr);
-    if(!chars)return;
-    {std::lock_guard<std::mutex> lock(textMutex);pendingInput.push_back({false,chars});}
-    env->ReleaseStringUTFChars(jtext,chars);
+    auto text=fromJString(env,jtext);
+    {std::lock_guard<std::mutex> lock(textMutex);pendingInput.push_back({false,std::move(text)});}
 }
 extern "C" JNIEXPORT void JNICALL
 Java_de_imgui_direct_ImGuiInputActivity_nativeBackspace(JNIEnv*,jclass) {

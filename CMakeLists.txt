@@ -71,4 +71,7 @@ if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME ST
   add_executable(touch_test tests/touch_test.cpp)
   target_include_directories(touch_test PRIVATE src)
   add_test(NAME touch_gestures COMMAND touch_test)
+  add_executable(utf_test tests/utf_test.cpp)
+  target_include_directories(utf_test PRIVATE src)
+  add_test(NAME unicode_roundtrip COMMAND utf_test)
 endif()

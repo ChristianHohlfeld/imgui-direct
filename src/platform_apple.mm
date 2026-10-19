@@ -292,7 +292,8 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
             auto& io=ImGui::GetIO();
             io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
             io.AddMousePosEvent((float)p.x,(float)p.y);
-            io.AddMouseButtonEvent(0,
+            int button=(event.buttonMask&UIEventButtonMaskSecondary)?1:0;
+            io.AddMouseButtonEvent(button,
                 t.phase!=UITouchPhaseEnded&&t.phase!=UITouchPhaseCancelled);
             continue;
         }
