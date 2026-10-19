@@ -97,3 +97,6 @@ fonts dynamically at requested sizes; avoid magnifying a 13px raster bitmap.
 Visual QA is captured using headless Chromium WebGL2 at 1× desktop and 2×
 phone/iPad resolutions. Reference screenshots from daisyUI button/card docs
 are saved alongside actual app captures in the CI visual artifact.
+
+Inter's complete SIL Open Font License is shipped in
+[`licenses/Inter-OFL.txt`](../licenses/Inter-OFL.txt).
