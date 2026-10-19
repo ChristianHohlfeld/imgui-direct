@@ -43,6 +43,7 @@ float control_height(Size size=Size::MD);
 Interaction last_interaction(bool disabled=false);
 // Bounds of the most recent Input(), used by mobile OS/browser IME adapters.
 void LastInputBounds(ImVec2& minimum,ImVec2& maximum);
+void Title(const char* text);
 void Heading(const char* text);
 void Muted(const char* text);
 void Divider();

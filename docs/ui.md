@@ -81,3 +81,41 @@ FPS counters, graphics-debug panels, backend badges, or technical UI text.
 CI validates the theme/state dimensions plus the existing touch/Unicode suite
 on native targets and compiles browser WebGL2/WASM and Android APK builds.
 Actual hardware acceptance remains separately necessary.
+
+## Typography and high-density screens
+
+The project embeds the OFL-licensed **Inter** proportional typeface at build time
+(pinned to Google Fonts commit `e1d6480102fed30739fead0faee463101f892c8f`).
+Only the final binary contains font data. No runtime request to Google Fonts,
+no platform-installed font dependency, no extra UI renderer.
+
+We deliberately do **not** use ProggyClean/ProggyForever, the default ImGui
+developer fonts. Responsive layout is in logical/CSS pixels, while the WebGL2
+canvas is backed by real device pixel dimensions. Dear ImGui 1.93 renders
+fonts dynamically at requested sizes; avoid magnifying a 13px raster bitmap.
+
+Visual QA is captured using headless Chromium WebGL2 at 1× desktop and 2×
+phone/iPad resolutions. Reference screenshots from daisyUI button/card docs
+are saved alongside actual app captures in the CI visual artifact.
+
+Inter's complete SIL Open Font License is shipped in
+[`licenses/Inter-OFL.txt`](../licenses/Inter-OFL.txt).
+
+### Physical pixel invariant (WebGL2)
+
+The native canvas is sized using a `ResizeObserver` with
+`device-pixel-content-box` when the browser exposes it. That gives the actual
+**physical pixel count of the canvas's content box**. The JS platform adapter
+owns the `canvas.width`/`canvas.height` backing store. Every C++ frame reads
+its logical CSS size and the real WebGL `drawingBufferWidth/Height`; the
+frame is skipped rather than rendering into a mismatched buffer. ImGui uses
+`DisplaySize=CSS pixels` and `DisplayFramebufferScale=actual backing/CSS`, so
+1.92+ dynamic font rasterization scales into the actual framebuffer (without a
+second manual DPI multiplier).
+
+Chromium provides exact device-pixel-content-box sizes; for unsupported
+Safari/Firefox configurations we must fall back to rounded CSS size × DPR.
+That fallback cannot guarantee compositor-perfect snapping under fractional
+DPR, and the operating system/browser can still apply display transforms.
+No canvas-based renderer can promise identical text hinting/subpixel-AA to
+native DOM text across all display pipelines.

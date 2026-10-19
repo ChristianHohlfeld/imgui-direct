@@ -14,6 +14,29 @@ add_library(imgui_core STATIC
 target_include_directories(imgui_core PUBLIC "${IMGUI}" "${IMGUI}/backends")
 # Project-owned UI library: semantic tokens and native Dear ImGui components.
 add_library(ui_foundation STATIC src/ui/theme.cpp src/ui/components.cpp)
+# Download an immutable, OFL-licensed proportional font at BUILD time.
+# Embed it as C++ data: no runtime font asset, web font fetching, or OS-specific
+# font paths. Default Dear ImGui font is deliberately NOT used.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(INTER_UPSTREAM "https://raw.githubusercontent.com/google/fonts/e1d6480102fed30739fead0faee463101f892c8f/ofl/inter")
+set(INTER_TTF "${CMAKE_BINARY_DIR}/_fonts/Inter.ttf")
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_fonts")
+if(NOT EXISTS "${INTER_TTF}")
+  file(DOWNLOAD "${INTER_UPSTREAM}/Inter%5Bopsz%2Cwght%5D.ttf"
+       "${INTER_TTF}" STATUS FONT_STATUS TLS_VERIFY ON)
+  list(GET FONT_STATUS 0 FONT_RESULT)
+  if(NOT FONT_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not download pinned Inter font: ${FONT_STATUS}")
+  endif()
+endif()
+# Inter's original SIL OFL license is included in licenses/Inter-OFL.txt.
+set(INTER_GENERATED "${CMAKE_BINARY_DIR}/generated/inter_font.cpp")
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/embed_font.py" "${INTER_TTF}" "${INTER_GENERATED}"
+    RESULT_VARIABLE FONT_CONVERT_RESULT)
+if(NOT FONT_CONVERT_RESULT EQUAL 0)
+  message(FATAL_ERROR "Failed to embed Inter font")
+endif()
+target_sources(ui_foundation PRIVATE "${INTER_GENERATED}")
 target_include_directories(ui_foundation PUBLIC "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(ui_foundation PUBLIC imgui_core)
 if(EMSCRIPTEN)

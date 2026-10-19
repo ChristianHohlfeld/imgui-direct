@@ -52,11 +52,11 @@ Paint paint(Options options){
     return b;
 }
 void focus_ring(){
-    if(ImGui::IsItemFocused()){
+    if(ImGui::IsItemFocused() && ImGui::GetIO().NavVisible){
         const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
         ImGui::GetWindowDrawList()->AddRect(
             {a.x-2.f,a.y-2.f},{b.x+2.f,b.y+2.f},packed(palette().primary),
-            9.f,0,2.f);
+            9.f,0,1.6f);
     }
 }
 void label(const char* text,Field f){
@@ -91,8 +91,8 @@ void field_end(Field f){
 }
 }
 float control_height(Size size){
-    const float desktop[]={30.f,35.f,40.f,47.f,55.f};
-    const float mobile[]={44.f,44.f,48.f,54.f,62.f};
+    const float desktop[]={28.f,33.f,38.f,44.f,50.f};
+    const float mobile[]={44.f,44.f,46.f,50.f,58.f};
     int i=std::clamp((int)size,0,4);
     return (is_touch()?mobile[i]:desktop[i])*scale();
 }
@@ -100,9 +100,16 @@ Interaction last_interaction(bool disabled) {
     return {ImGui::IsItemHovered(),ImGui::IsItemActive(),ImGui::IsItemFocused(),
             ImGui::IsItemActivated(),disabled};
 }
+void Title(const char* value){
+    ImGui::PushStyleColor(ImGuiCol_Text,vec(palette().baseContent));
+    ImGui::PushFont(nullptr,25.f);
+    ImGui::TextUnformatted(value?value:"");
+    ImGui::PopFont();
+    ImGui::PopStyleColor();
+}
 void Heading(const char* value){
     ImGui::PushStyleColor(ImGuiCol_Text,vec(palette().baseContent));
-    ImGui::SetWindowFontScale(1.14f);
+    ImGui::SetWindowFontScale(1.23f);
     ImGui::TextUnformatted(value?value:"");
     ImGui::SetWindowFontScale(1.f);
     ImGui::PopStyleColor();
@@ -116,12 +123,12 @@ void Divider(){ImGui::Separator();}
 void Badge(const char* value,Status status){
     const Color c=status_color(status);
     const ImVec2 measure=ImGui::CalcTextSize(value);
-    ImVec2 size{measure.x+20.f,measure.y+9.f};
+    ImVec2 size{measure.x+18.f,measure.y+7.f};
     const ImVec2 p=ImGui::GetCursorScreenPos();
     ImGui::Dummy(size);
     ImGui::GetWindowDrawList()->AddRectFilled(p,{p.x+size.x,p.y+size.y},
                  packed(blend(palette().base200,c,.15f)),size.y*.45f);
-    ImGui::GetWindowDrawList()->AddText({p.x+10.f,p.y+4.f},packed(c),value);
+    ImGui::GetWindowDrawList()->AddText({p.x+9.f,p.y+3.f},packed(c),value);
 }
 void Alert(const char* title,const char* message,Status status){
     const Color c=status_color(status);
@@ -269,7 +276,7 @@ bool Radio(const char* label,int item,int* selected,Field field){
 bool Switch(const char* label,bool* value,Field field) {
     if(!value)return false;
     ImGui::PushID(label);
-    const float w=54.f*scale(),h=std::max(control_height(field.size),44.f*scale());
+    const float w=48.f*scale(),h=std::max(control_height(field.size),42.f*scale());
     // InvisibleButton is a real ImGui nav/input item: it responds to keyboard,
     // mouse and synthesized native touch click. Hover is never required.
     if(field.disabled||field.readOnly)ImGui::BeginDisabled();
@@ -277,7 +284,7 @@ bool Switch(const char* label,bool* value,Field field) {
                        !field.disabled&&!field.readOnly;
     if(clicked)*value=!*value;
     const ImVec2 a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
-    const float trackH=24.f*scale(),r=trackH*.5f;
+    const float trackH=23.f*scale(),r=trackH*.5f;
     const float cy=(a.y+b.y)*.5f;
     const bool hovered=ImGui::IsItemHovered();
     const bool held=ImGui::IsItemActive();
