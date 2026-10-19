@@ -1,6 +1,7 @@
 #include "ui/components.hpp"
 #include "ui/theme.hpp"
 #include <cassert>
+#include <initializer_list>
 #include <cmath>
 int main(){
     IMGUI_CHECKVERSION();
