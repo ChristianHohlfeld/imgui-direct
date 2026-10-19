@@ -279,7 +279,12 @@ bool Switch(const char* label,bool* value,Field field) {
     const ImVec2 a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
     const float trackH=24.f*scale(),r=trackH*.5f;
     const float cy=(a.y+b.y)*.5f;
-    const Color bg=*value?palette().primary:palette().base300;
+    const bool hovered=ImGui::IsItemHovered();
+    const bool held=ImGui::IsItemActive();
+    Color bg=field.invalid?palette().error:(*value?palette().primary:palette().base300);
+    if(hovered)bg=blend(bg,palette().baseContent,.12f);
+    if(held)bg=blend(bg,palette().baseContent,.22f);
+    if(field.disabled)bg=blend(bg,palette().base200,.48f);
     ImDrawList* d=ImGui::GetWindowDrawList();
     d->AddRectFilled({a.x,cy-r},{a.x+w,cy+r},packed(bg),r);
     const float knobX=a.x+(*value?w-r:r);
