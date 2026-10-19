@@ -98,7 +98,7 @@ EM_BOOL touchcb(int kind,const EmscriptenTouchEvent* e,void*) {
         current.push_back({p.identifier,(float)p.targetX,(float)p.targetY,false});
     }
     std::sort(current.begin(),current.end(),[](const auto&a,const auto&b){return a.id<b.id;});
-    touch::dispatch(gestures.update(current,emscripten_get_now()/1000.,!ImGui::IsAnyItemActive()));
+    touch::dispatch(gestures.update(current,emscripten_get_now()/1000.,!ui::scroll::drag_control_active()));
     return EM_TRUE;
 }
 // Take both logical CSS size and the TRUE WebGL drawing-buffer size from the

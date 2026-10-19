@@ -1,4 +1,5 @@
 #include "ui/components.hpp"
+#include "ui/scroll.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cfloat>
@@ -312,6 +313,7 @@ bool Slider(const char* name,float* value,float min,float max,const char* fmt,Fi
     ImGui::SetNextItemWidth(-FLT_MIN);
     const bool changed=ImGui::SliderFloat("##slider",value,min,max,fmt,
                     field.readOnly?ImGuiSliderFlags_NoInput:0) && !field.readOnly;
+    ui::scroll::set_drag_control_active(ImGui::IsItemActive());
     field_end(field);ImGui::PopID();return changed;
 }
 void Progress(const char* title,float fraction,Status status){

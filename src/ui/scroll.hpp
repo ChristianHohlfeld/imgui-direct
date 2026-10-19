@@ -15,15 +15,18 @@ inline float to_pixels(float delta, Unit unit, float line=20.f, float page=760.f
 struct Buffer {
     float dx=0,dy=0,appliedX=0,appliedY=0;
     int rowsDrawn=0;
+    bool activeDrag=false;
     void add(float right,float down){
         if(std::isfinite(right))dx=std::clamp(dx+right,-20000.f,20000.f);
         if(std::isfinite(down))dy=std::clamp(dy+down,-20000.f,20000.f);
     }
-    void next_frame(){appliedX=appliedY=0;rowsDrawn=0;}
+    void next_frame(){appliedX=appliedY=0;rowsDrawn=0;activeDrag=false;}
     void discard(){dx=dy=0;}
 };
 inline Buffer& state(){static Buffer queue;return queue;}
 inline void add(float right,float down){state().add(right,down);}
+inline void set_drag_control_active(bool value){state().activeDrag|=value;}
+inline bool drag_control_active(){return state().activeDrag;}
 inline void add_wheel(float dx,float dy,Unit units,float line=20.f,float page=760.f){
     add(to_pixels(dx,units,line,page),to_pixels(dy,units,line,page));
 }

@@ -320,7 +320,7 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
             (float)p.x,(float)p.y,t.type==UITouchTypePencil});
     }
     std::sort(points.begin(),points.end(),[](const auto& a,const auto& b){return a.id<b.id;});
-    touch::dispatch(_touchController.update(points,CACurrentMediaTime(),!ImGui::IsAnyItemActive()));
+    touch::dispatch(_touchController.update(points,CACurrentMediaTime(),!ui::scroll::drag_control_active()));
 }
 -(void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
 -(void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}

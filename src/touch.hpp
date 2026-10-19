@@ -7,7 +7,7 @@
 
 namespace touch {
 struct Contact { std::int64_t id; float x, y; bool pen=false; };
-enum class Type { Move, Down, Up, Scroll, Zoom, LongPress };
+enum class Type { Move, Down, Up, Cancel, Scroll, Zoom, LongPress };
 struct Event { Type type; float x=0, y=0; float value=0, second=0; bool pen=false; };
 using Events = std::vector<Event>;
 class Controller {
@@ -44,7 +44,7 @@ public:
             const float mx=(a.x+b.x)*.5f,my=(a.y+b.y)*.5f;
             const float length=std::max(1.f,distance(a,b));
             if(mode_!=Mode::Multi) {
-                if(mode_==Mode::Pointer)send(Type::Up,first_.x,first_.y,0,0,first_.pen);
+                if(mode_==Mode::Pointer)send(Type::Cancel,first_.x,first_.y,0,0,first_.pen);
                 mode_=Mode::Multi; cx_=mx;cy_=my;separation_=length;
                 velocity_x_=velocity_y_=0; momentum_=false;
             } else {

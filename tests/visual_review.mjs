@@ -55,16 +55,6 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  // Exact native devicePixelContentBox when trustworthy; the fallback is
  // necessary on browsers/emulators which report CSS units from the observer.
  if(!state.metrics?.exact)console.log(name+' fallback: '+state.metrics?.source);
- if(name==='desktop') {
-  await page.mouse.click(730,136);
-  await page.waitForTimeout(900);
-  await page.screenshot({path:'visual-review/desktop-elements.png'});
- }
- if(name==='mobile') {
-  await page.touchscreen.tap(195,132);
-  await page.waitForTimeout(1000);
-  await page.screenshot({path:'visual-review/mobile-elements.png'});
- }
  // Native-feeling scrolling is a contract: a 90px Chrome trackpad-like
  // wheel event must cause 90px of C++ list movement, with no second
  // multiplier or delayed easing.
@@ -78,6 +68,17 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
    const moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,start);
    console.log('scroll-move',JSON.stringify({request:90,moved}));
    if(Math.abs(moved-90)>1.2)failures.push('exact Chrome wheel delta: '+moved);
+ }
+ if(name==='desktop') {
+  await page.mouse.click(730,136);
+  await page.waitForTimeout(900);
+  await page.screenshot({path:'visual-review/desktop-elements.png'});
+ }
+ if(name==='mobile') {
+  // Four tabs: x~145 selects Formulare; this page is scrollable too.
+  await page.touchscreen.tap(143,122);
+  await page.waitForTimeout(1000);
+  await page.screenshot({path:'visual-review/mobile-elements.png'});
  }
  await page.close();
 }
@@ -97,7 +98,7 @@ try {
  try{
    await listPage.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
    await listPage.waitForTimeout(2400);
-   await listPage.mouse.click(337,122);
+   await listPage.mouse.click(339,122);
    await listPage.waitForFunction(()=>window.__imguiScroll?.rowsRendered>0,
                                   {timeout:4500});
    const before=await listPage.evaluate(()=>window.__imguiScrollTotal||0);

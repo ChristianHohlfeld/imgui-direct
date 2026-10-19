@@ -13,7 +13,7 @@ int main() {
     assert(a.size()==1&&a[0].type==Type::Up);
     a=g.update({{1,20,30}},2.);
     a=g.update({{1,20,30},{2,80,30}},2.01);
-    assert(a.size()==1&&a[0].type==Type::Up);
+    assert(a.size()==1&&a[0].type==Type::Cancel);
     a=g.update({{1,25,55},{2,85,55}},2.03);
     assert(a.size()==1&&a[0].type==Type::Scroll);
     a=g.update({{1,20,45},{2,110,45}},2.04);
@@ -33,7 +33,7 @@ int main() {
     g.reset();
     a=g.update({{1,10,10}},4.);
     a=g.update({{1,10,45}},4.02,true);
-    assert(a.size()==2&&a.back().type==Type::Scroll);
+    assert(a.size()==2&&a[0].type==Type::Cancel&&a.back().type==Type::Scroll);
     a=g.update({},4.04);
     assert(g.tick(4.055).size()==1); // inertial scroll
     // Tick cadence must not mutate the input velocity sampling clock.

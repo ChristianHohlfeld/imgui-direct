@@ -188,7 +188,7 @@ int32_t input(android_app*,AInputEvent* e) {
                 }
                 std::sort(active.begin(),active.end(),[](auto&a,auto&b){return a.id<b.id;});
             }
-            touch::dispatch(gestures.update(active,clockSeconds(),!ImGui::IsAnyItemActive()));
+            touch::dispatch(gestures.update(active,clockSeconds(),!ui::scroll::drag_control_active()));
             return 1;
         }
     }
