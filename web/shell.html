@@ -52,12 +52,20 @@
     if (!(cssWidth > 0 && cssHeight > 0)) return state;
     // If a devicePixelContentBox observation is stale, fall back until its
     // next delivery; never use old physical pixels with a new CSS viewport.
-    const useObserved = observed &&
+    // Some Chromium emulators expose the device-pixel content box as CSS
+    // pixels while emulating a DPR > 1 (our screenshot QA caught this).
+    // Never trust a device-pixel observation if it contradicts the effective
+    // screen density by MORE than the <1px rounding uncertainty.
+    const dprWidth = cssWidth * dpr, dprHeight = cssHeight * dpr;
+    const observationCurrent = observed &&
       Math.abs(observed.cssWidth - cssWidth) < 1e-5 &&
       Math.abs(observed.cssHeight - cssHeight) < 1e-5 &&
       observed.dpr === dpr;
-    const pxWidth = useObserved ? observed.pixelWidth : Math.round(cssWidth * dpr);
-    const pxHeight = useObserved ? observed.pixelHeight : Math.round(cssHeight * dpr);
+    const useObserved = observationCurrent &&
+      Math.abs(observed.pixelWidth - dprWidth) <= 1.01 &&
+      Math.abs(observed.pixelHeight - dprHeight) <= 1.01;
+    const pxWidth = useObserved ? observed.pixelWidth : Math.round(dprWidth);
+    const pxHeight = useObserved ? observed.pixelHeight : Math.round(dprHeight);
     const width = Math.max(1, pxWidth), height = Math.max(1, pxHeight);
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
@@ -65,7 +73,9 @@
     }
     Object.assign(state, {
       cssWidth, cssHeight, pixelWidth: width, pixelHeight: height, dpr,
-      exact: !!useObserved, source: useObserved ? 'device-pixel-content-box' : 'dpr-fallback',
+      exact: !!useObserved,
+      source: useObserved ? 'device-pixel-content-box' :
+        (observationCurrent ? 'dpr-fallback-unreliable-observation' : 'dpr-fallback'),
       ready: true
     });
     return state;

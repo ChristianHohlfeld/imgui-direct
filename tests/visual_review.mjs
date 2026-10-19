@@ -13,7 +13,8 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text())});
  const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
  await page.waitForTimeout(6500);
- await page.screenshot({path:'visual-review/'+name+'.png'});
+ const screenshot=await page.screenshot({path:'visual-review/'+name+'.png'});
+ const outputPixels=[screenshot.readUInt32BE(16),screenshot.readUInt32BE(20)];
  await page.waitForFunction(() => {
    const s=window.__imguiCanvasPixels?.state;
    return s?.ready && s.pixelWidth>0 && s.pixelHeight>0;
@@ -44,7 +45,16 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
     state.viewportHeight !== state.drawingHeight)
    failures.push(name+' 1px physical mismatch: '+JSON.stringify(state));
  // Modern Chromium supports the authoritative device-pixel-content-box path.
- if(!state.metrics?.exact)failures.push(name+' uses rounded DPR instead of exact content box');
+ // A canvas backing store can agree with WebGL and still be WRONG:
+ // compare to the independent Chromium screenshot/compositor pixel dimensions.
+ if(state.canvasWidth!==outputPixels[0] || state.canvasHeight!==outputPixels[1])
+   failures.push(name+' compositor rescaling detected: '+JSON.stringify({
+     canvas:[state.canvasWidth,state.canvasHeight],png:outputPixels,
+     dpr:state.dpr,source:state.metrics?.source
+   }));
+ // Exact native devicePixelContentBox when trustworthy; the fallback is
+ // necessary on browsers/emulators which report CSS units from the observer.
+ if(!state.metrics?.exact)console.log(name+' fallback: '+state.metrics?.source);
  if(name==='desktop') {
   await page.mouse.click(730,136);
   await page.waitForTimeout(900);
@@ -84,10 +94,15 @@ try {
     });
     console.log('resize',JSON.stringify(pixels));
     const p=pixels;
-    if(!p.exact || p.canvas.some((value,i)=>
+    if(p.canvas.some((value,i)=>
        value!==p.requested[i] || value!==p.backing[i] || value!==p.glViewport[i]))
       failures.push('resize physical pixel invariant: '+JSON.stringify(p));
-    await resize.screenshot({path:'visual-review/resized.png'});
+    const resizedPng=await resize.screenshot({path:'visual-review/resized.png'});
+    const screenshotPhysical=[resizedPng.readUInt32BE(16),resizedPng.readUInt32BE(20)];
+    if(p.canvas.some((pixel,i)=>pixel!==screenshotPhysical[i]))
+       failures.push('resize screenshot/resolution mismatch: '+JSON.stringify({
+         frame:p.canvas,png:screenshotPhysical
+       }));
  } finally {await resize.close(); }
  for(const item of [{name:'daisy-button',url:'https://daisyui.com/components/button/'},
                     {name:'daisy-card',url:'https://daisyui.com/components/card/'}]) {
