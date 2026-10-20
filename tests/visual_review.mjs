@@ -223,9 +223,20 @@ try {
    await listPage.waitForFunction(()=>window.__imguiRawWheel?.received>0,
                                   null,{timeout:5000});
    const actualDelta=await listPage.evaluate(()=>window.__imguiRawWheel.y);
-   await listPage.waitForFunction(({before,actualDelta})=>
-       (window.__imguiScrollTotal||0)>=before+actualDelta-1,
-       {before,actualDelta},{timeout:6000});
+   try {
+     await listPage.waitForFunction(({before,actualDelta})=>
+         (window.__imguiScrollTotal||0)>=before+actualDelta-1,
+         {before,actualDelta},{timeout:6000});
+   } catch(error) {
+     console.log('LIST SCROLL DEBUG',JSON.stringify(await listPage.evaluate(({before,actualDelta})=>({
+       before,actualDelta,total:window.__imguiScrollTotal,
+       scroll:window.__imguiScroll,scrollDebug:window.__imguiScrollDebug,
+       mouse:window.__imguiPointerState,raw:window.__imguiRawWheel,
+       page:window.__imguiUIState
+     }),{before,actualDelta})));
+     await listPage.screenshot({path:'visual-review/list-wheel-failed.png'});
+     throw error;
+   }
    const movement=await listPage.evaluate(start=>
        (window.__imguiScrollTotal||0)-start,before);
    if(Math.abs(movement-actualDelta)>1.2)
