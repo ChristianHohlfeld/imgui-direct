@@ -162,7 +162,11 @@ try {
                                       deviceScaleFactor:2,isMobile:true,hasTouch:true});
  try{
    await listPage.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
-   await listPage.waitForTimeout(2400);
+   // Wait for the actual WASM-rendered C++ app, not a fixed delay. On a
+   // cold software-WebGL runner startup can exceed 2.4 seconds, otherwise
+   // this test clicks the blank loading canvas and reports a false failure.
+   await listPage.waitForFunction(() => window.__imguiUIState?.page===0,
+                                  null,{timeout:20000});
    // Hold through at least two frames so real ImGui mouse-down/up are
    // processed, rather than dropping a synthetic 1ms click on WebGL.
    await listPage.mouse.move(339,122);
