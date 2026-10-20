@@ -69,6 +69,16 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
    await page.waitForFunction(initial=>window.__imguiUIState?.clicks===initial+1,
                               first,{timeout:4000});
    const clicked=await page.evaluate(()=>window.__imguiUIState.clicks);
+   // Verify hybrid mouse hover while the button has not moved under scroll.
+   await page.waitForTimeout(780); // avoid Safari's synthesized mouse click
+   await page.mouse.move(105,374);
+   await page.waitForFunction(()=>
+     document.getElementById('canvas')?.style.cursor==='pointer',
+     null,{timeout:4000});
+   await page.mouse.move(385,800);
+   await page.waitForFunction(()=>
+     document.getElementById('canvas')?.style.cursor==='default',
+     null,{timeout:4000});
    const session=await page.context().newCDPSession(page);
    try {
      await session.send('Input.dispatchTouchEvent',
@@ -112,16 +122,6 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
    console.log('real-wheel',JSON.stringify({physicalRequest:90,cssReceived:actual,moved}));
    if(Math.abs(moved-actual)>1.2)failures.push('real Chrome wheel delta mismatch: '+moved+' vs '+actual);
 
-   // Hybrid iPad-style devices must regain mouse hover after a touch.
-   await page.waitForTimeout(780);
-   await page.mouse.move(105,374);
-   await page.waitForFunction(()=>
-     document.getElementById('canvas')?.style.cursor==='pointer',
-     null,{timeout:4000});
-   await page.mouse.move(385,800);
-   await page.waitForFunction(()=>
-     document.getElementById('canvas')?.style.cursor==='default',
-     null,{timeout:4000});
    // Explicitly emit a CSS-pixel precise WheelEvent to ensure 90 really
    // means 90 logical layout pixels (no double ImGui wheel scaling).
    const secondStart=await page.evaluate(()=>window.__imguiScrollTotal||0);
