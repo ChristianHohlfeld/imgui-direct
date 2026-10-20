@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cmath>
+#include <cfloat>
 namespace {
 double previous=0;
 double lastTouch=-10000.;
@@ -35,6 +36,15 @@ EM_JS(void, diagnostic_wheel, (float x,float y,float mouseX,float mouseY,int mod
     window.__imguiRawWheel={x,y,mouseX,mouseY,mode,received:(window.__imguiRawWheel?.received||0)+1};
 });
 
+EM_JS(void, report_pointer_source, (int source,int cursor,float x,float y), {
+    window.__imguiPointerState={source,cursor,x,y};
+});
+EM_JS(void, update_canvas_cursor, (int hand), {
+    const canvas=document.getElementById('canvas');
+    if(!canvas)return;
+    const cursor=hand?'pointer':'default';
+    if(canvas.style.cursor!==cursor)canvas.style.cursor=cursor;
+});
 EM_JS(void, bootstrap_frame_ready, (), {
     const status=document.getElementById('status');
     if(status && status.textContent)status.textContent='';
@@ -78,6 +88,9 @@ EM_BOOL keycb(int kind,const EmscriptenKeyboardEvent* e,void*) {
 EM_BOOL mousecb(int kind,const EmscriptenMouseEvent* e,void*) {
     if(emscripten_get_now()-lastTouch<700.)return EM_TRUE; // suppress synthesized touch mouse events
     auto& io=ImGui::GetIO();
+    // Hybrid iPad/desktop: the last finger event must not make a real
+    // trackpad/mouse hover look like a touch forever.
+    io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
     io.AddMousePosEvent((float)e->targetX,(float)e->targetY);
     if(kind==EMSCRIPTEN_EVENT_MOUSEDOWN || kind==EMSCRIPTEN_EVENT_MOUSEUP) {
         int button=e->button==0?0:e->button==2?1:e->button==1?2:-1;
@@ -99,6 +112,7 @@ EM_BOOL wheelcb(int,const EmscriptenWheelEvent* e,void*) {
         // Browser trackpad pinch is exposed as Ctrl+wheel.
         app::zoom(std::exp(-(float)e->deltaY*.001f));
     } else {
+        ImGui::GetIO().AddMouseSourceEvent(ImGuiMouseSource_Mouse);
         ImGui::GetIO().AddMousePosEvent((float)e->mouse.targetX,(float)e->mouse.targetY);
         ui::scroll::add_wheel((float)e->deltaX,(float)e->deltaY,unit,20.f,page);
     }
@@ -106,6 +120,11 @@ EM_BOOL wheelcb(int,const EmscriptenWheelEvent* e,void*) {
 }
 EM_BOOL touchcb(int kind,const EmscriptenTouchEvent* e,void*) {
     lastTouch=emscripten_get_now();
+    if(kind==EMSCRIPTEN_EVENT_TOUCHCANCEL){
+        touch::dispatch(gestures.cancel());
+        ui::scroll::state().discard();
+        return EM_TRUE;
+    }
     std::vector<touch::Contact> current;
     for(int i=0;i<e->numTouches;++i) {
         const auto& p=e->touches[i];
@@ -115,6 +134,19 @@ EM_BOOL touchcb(int kind,const EmscriptenTouchEvent* e,void*) {
     std::sort(current.begin(),current.end(),[](const auto&a,const auto&b){return a.id<b.id;});
     touch::dispatch(gestures.update(current,emscripten_get_now()/1000.,!ui::scroll::drag_control_active()));
     return EM_TRUE;
+}
+EM_BOOL focuscb(int kind,const EmscriptenFocusEvent*,void*) {
+    const bool focused=kind==EMSCRIPTEN_EVENT_FOCUS;
+    if(!focused){
+        touch::dispatch(gestures.cancel());
+        ui::scroll::state().discard();
+        lastTouch=emscripten_get_now();
+        auto& io=ImGui::GetIO();
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);
+        for(int i=0;i<3;++i)io.AddMouseButtonEvent(i,false);
+    }
+    ImGui::GetIO().AddFocusEvent(focused);
+    return EM_FALSE;
 }
 // Take both logical CSS size and the TRUE WebGL drawing-buffer size from the
 // same browser snapshot. ResizeObserver owns canvas.width/height, preventing
@@ -165,6 +197,14 @@ void frame() {
     glClearColor(background.r,background.g,background.b,1);
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    // A touch-capable iPad can still have a real mouse/trackpad attached.
+    // Follow the CURRENT pointer source, never only the device capability.
+    report_pointer_source((int)ImGui::GetIO().MouseSource,
+                          (int)ImGui::GetMouseCursor(),
+                          ImGui::GetIO().MousePos.x,ImGui::GetIO().MousePos.y);
+    update_canvas_cursor(
+        ImGui::GetIO().MouseSource!=ImGuiMouseSource_TouchScreen &&
+        ImGui::GetMouseCursor()==ImGuiMouseCursor_Hand);
     bootstrap_frame_ready();
 }
 }
@@ -190,6 +230,8 @@ int main() {
     emscripten_set_touchmove_callback("#canvas",nullptr,true,touchcb);
     emscripten_set_touchend_callback("#canvas",nullptr,true,touchcb);
     emscripten_set_touchcancel_callback("#canvas",nullptr,true,touchcb);
+    emscripten_set_blur_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW,nullptr,true,focuscb);
+    emscripten_set_focus_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW,nullptr,true,focuscb);
     emscripten_set_main_loop(frame,0,true);
 }
 

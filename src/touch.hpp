@@ -22,6 +22,16 @@ class Controller {
 public:
     bool active() const {return mode_!=Mode::Idle;}
     void reset() { *this=Controller{}; }
+    // The OS/browser may cancel a gesture when a call, alert, navigation or
+    // background transition interrupts it. This MUST NOT synthesize a tap,
+    // a right click or a release fling.
+    Events cancel() {
+        Events out;
+        if(mode_==Mode::Pointer)
+            out.push_back({Type::Cancel,first_.x,first_.y,0,0,first_.pen});
+        reset();
+        return out;
+    }
     // Pass the complete currently-active pointer set after each OS touch event.
     // allow_scroll must be false when the user is manipulating an active widget (e.g. slider).
     Events update(const std::vector<Contact>& contacts,double now,bool allow_scroll=true) {
@@ -34,7 +44,7 @@ public:
         if(contacts.empty()) {
             if(mode_==Mode::Pointer)send(Type::Up,first_.x,first_.y,0,0,first_.pen);
             if(mode_==Mode::Scroll || mode_==Mode::Multi)
-                momentum_=std::hypot(velocity_x_,velocity_y_)>.6f;
+                momentum_=std::hypot(velocity_x_,velocity_y_)>36.f;
             if(mode_==Mode::Scroll && idleBeforeEvent>.1)momentum_=false;
             mode_=Mode::Idle;holding_=false;
             return out;
@@ -50,10 +60,10 @@ public:
             } else {
                 float dx=mx-cx_,dy=my-cy_;
                 if(std::abs(dx)>0.01f||std::abs(dy)>0.01f){
-                    // ImGui mouse wheel units are not pixels; ~60 screen points per wheel unit.
-                    send(Type::Scroll,cx_,cy_,-dx/60.f,-dy/60.f);
-                    velocity_x_=capped(-dx/dt/60.f,20.f);
-                    velocity_y_=capped(-dy/dt/60.f,20.f);
+                    // Gesture coordinates and scroll output are both logical screen pixels.
+                    send(Type::Scroll,cx_,cy_,-dx,-dy);
+                    velocity_x_=capped(-dx/dt,1200.f);
+                    velocity_y_=capped(-dy/dt,1200.f);
                 }
                 const float scale=length/separation_;
                 if(scale<.98f||scale>1.02f) send(Type::Zoom,mx,my,scale);
@@ -66,7 +76,7 @@ public:
             // Don't click when a second finger leaves. Keep kinetic velocity and
             // start coasting only after the remaining finger also leaves.
             if(mode_==Mode::Multi)
-                momentum_=std::hypot(velocity_x_,velocity_y_)>.6f;
+                momentum_=std::hypot(velocity_x_,velocity_y_)>36.f;
             mode_=Mode::Suppressed;
             return out;
         }
@@ -95,11 +105,11 @@ public:
         }
         if(mode_==Mode::Scroll) {
             const float dy=p.y-first_.y,dx=p.x-first_.x;
-            send(Type::Scroll,p.x,p.y,-dx/60.f,-dy/60.f);
+            send(Type::Scroll,p.x,p.y,-dx,-dy);
             // Velocity filtering applies ONLY to finger flicks, never to
             // native trackpad/macOS momentum events, which are already shaped.
-            const float vx=capped(-dx/dt/60.f,90.f);
-            const float vy=capped(-dy/dt/60.f,90.f);
+            const float vx=capped(-dx/dt,5400.f);
+            const float vy=capped(-dy/dt,5400.f);
             velocity_x_=velocity_x_*.35f+vx*.65f;
             velocity_y_=velocity_y_*.35f+vy*.65f;
             first_=p;
@@ -116,7 +126,7 @@ public:
         if(mode_==Mode::Pointer&&holding_&&!long_pressed_&&
            now-down_at_>=.55&&std::hypot(first_.x-x0_,first_.y-y0_)<=10.f) {
             // Long press opens ImGui's right-button context menu.
-            out.push_back({Type::Up,first_.x,first_.y,0,0,first_.pen});
+            out.push_back({Type::Cancel,first_.x,first_.y,0,0,first_.pen});
             out.push_back({Type::LongPress,first_.x,first_.y,0,0,first_.pen});
             holding_=false;long_pressed_=true;mode_=Mode::Suppressed;
         }
@@ -129,7 +139,7 @@ public:
             out.push_back({Type::Scroll,first_.x,first_.y,
                            velocity_x_*integrated,velocity_y_*integrated});
             velocity_x_*=drag;velocity_y_*=drag;
-            if(std::hypot(velocity_x_,velocity_y_)<.065f)momentum_=false;
+            if(std::hypot(velocity_x_,velocity_y_)<4.f)momentum_=false;
         }
         return out;
     }

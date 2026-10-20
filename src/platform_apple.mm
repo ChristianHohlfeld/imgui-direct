@@ -156,6 +156,19 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 
     self.mtkView.device = self.device;
     self.mtkView.delegate = self;
+    // MTKView defaults to 60 FPS even on ProMotion displays. Request the
+    // active device's refresh capacity so trackpad/finger scroll can redraw
+    // at up to 120 Hz, while the OS remains free to throttle as needed.
+#if TARGET_OS_OSX
+    if (@available(macOS 12.0, *)) {
+        NSScreen* screen = self.view.window.screen ?: NSScreen.mainScreen;
+        if(screen)self.mtkView.preferredFramesPerSecond =
+            std::max((NSInteger)60,screen.maximumFramesPerSecond);
+    }
+#else
+    self.mtkView.preferredFramesPerSecond =
+        std::max((NSInteger)60,UIScreen.mainScreen.maximumFramesPerSecond);
+#endif
 
 #if TARGET_OS_OSX
     ImGui_ImplOSX_Init(self.view);
@@ -325,7 +338,13 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 -(void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
 -(void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
 -(void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
--(void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
+-(void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
+    touch::dispatch(_touchController.cancel());
+    ui::scroll::state().discard();
+    auto& io=ImGui::GetIO();
+    io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);
+    io.AddMouseButtonEvent(0,false);
+}
 
 -(void)onHover:(UIHoverGestureRecognizer*)recognizer {
     auto& io=ImGui::GetIO();
@@ -369,7 +388,8 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 }
 -(void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
-    _touchController.reset();
+    touch::dispatch(_touchController.cancel());
+    ui::scroll::state().discard();
     ImGui::GetIO().AddFocusEvent(false);
     [self.keyboardSink resignFirstResponder];
 }

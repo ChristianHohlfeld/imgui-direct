@@ -159,6 +159,9 @@ void virtual_list(){
                 if(ImGui::Selectable(label,d.listSelected==i,0,
                                      {0,row-ImGui::GetStyle().ItemSpacing.y}))
                     d.listSelected=i;
+                if(ImGui::IsItemHovered() &&
+                   ImGui::GetIO().MouseSource!=ImGuiMouseSource_TouchScreen)
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
                 ImGui::PopID();
                 ++ui::scroll::state().rowsDrawn;
             }

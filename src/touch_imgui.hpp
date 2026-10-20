@@ -3,17 +3,17 @@
 #include "imgui.h"
 #include "app.hpp"
 #include "ui/scroll.hpp"
+#include <cfloat>
 namespace touch {
 inline void dispatch(const Events& events) {
     auto& io=ImGui::GetIO();
     for(const auto& e:events) {
         if(e.type==Type::Zoom) { app::zoom(e.value); continue; }
         if(e.type==Type::Scroll) {
-            // Preserve the touch pointer for scroll routing even after
-            // releasing a pressed button at an off-screen cancel position.
+            // End-to-end logical pixels: no wheel-unit conversions.
             io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
             io.AddMousePosEvent(e.x,e.y);
-            ui::scroll::add(e.value*60.f,e.second*60.f);
+            ui::scroll::add(e.value,e.second);
             continue;
         }
         if(e.type==Type::Cancel) {

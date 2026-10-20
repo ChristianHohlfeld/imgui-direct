@@ -150,3 +150,19 @@ use error outline, disabled/loading cannot activate, and touch uses pressed
 feedback rather than sticky hover. Keyboard focus uses an accessible visible
 ring when keyboard navigation is active. Gesture cancel prevents a touch
 scroll from committing a pending button click.
+
+## Native input invariants
+
+Every scroll event uses **logical pixels** inside the shared C++ touch/scroll
+engine. OS/browser trackpad momentum passes through unchanged. Finger kinetic
+momentum is integrated analytically, once, at the render frame cadence.
+
+An OS `touchcancel`, interrupted gesture, app background, or browser blur
+cancels pending primary-button interaction and kinetic scrolling. Cancellation
+is never treated as a regular tap/release. Long-press likewise cancels the
+primary-button press before raising a context event.
+
+Buttons, switches, radio buttons, checkboxes, combos and list selections
+request the native hand cursor on mouse hover, not on touch; disabled widgets
+do not request it. The WebGL canvas reflects that cursor without any HTML
+component clone. This keeps the platform widget interaction rules shared.

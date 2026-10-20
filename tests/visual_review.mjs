@@ -82,7 +82,18 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
      await page.waitForTimeout(160);
      const end=await page.evaluate(()=>window.__imguiUIState.clicks);
      if(end!==clicked)failures.push('swipe incorrectly clicked native button');
-     console.log('touch-button',JSON.stringify({tap:clicked-first,swipeClicks:end-clicked}));
+     // Explicit OS touchCancel is NOT a finger release or a tap.
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchStart',touchPoints:[{x:105,y:374}]});
+     await page.waitForTimeout(75);
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchCancel',touchPoints:[]});
+     await page.waitForTimeout(160);
+     const afterCancel=await page.evaluate(()=>window.__imguiUIState.clicks);
+     if(afterCancel!==clicked)failures.push('touchCancel incorrectly clicked native button');
+     console.log('touch-button',JSON.stringify({
+       tap:clicked-first,swipeClicks:end-clicked,cancelClicks:afterCancel-clicked
+     }));
    } finally {await session.detach();}
  }
  // Assert the DOM event's actual CSS delta, not Playwright's requested
@@ -115,6 +126,15 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
    if(Math.abs(moved-90)>1.2)failures.push('1:1 DOM pixel delta mismatch: '+moved);
  }
  if(name==='desktop') {
+  // The canvas-backed native button uses the OS hand cursor like Chrome UI.
+  await page.mouse.move(255,375);
+  await page.waitForFunction(()=>
+    document.getElementById('canvas')?.style.cursor==='pointer',
+    null,{timeout:5000});
+  await page.mouse.move(1400,870);
+  await page.waitForFunction(()=>
+    document.getElementById('canvas')?.style.cursor==='default',
+    null,{timeout:5000});
   await page.mouse.click(730,136);
   await page.waitForTimeout(900);
   await page.screenshot({path:'visual-review/desktop-elements.png'});
@@ -136,13 +156,47 @@ try {
  await capture('dpi150',1111,803,1.5,false);
  await capture('dpi133',1001,713,1.3333333333,false);
  await capture('dpi300',393,852,3,true);
+ // A touch-enabled laptop (iPad + trackpad-like mixed input) must
+ // switch source back to Mouse on pointer movement after a finger tap.
+ const hybrid=await browser.newPage({viewport:{width:390,height:844},
+                                    deviceScaleFactor:2,hasTouch:true,isMobile:false});
+ try{
+   await hybrid.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
+   await hybrid.waitForFunction(()=>window.__imguiUIState?.page===0,
+                                null,{timeout:20000});
+   await hybrid.touchscreen.tap(105,374);
+   await hybrid.waitForTimeout(850); // suppress only synthesized touch mice
+   await hybrid.mouse.move(380,800);
+   await hybrid.waitForTimeout(80);
+   await hybrid.mouse.move(105,374);
+   try{
+     await hybrid.waitForFunction(()=>
+       document.getElementById('canvas')?.style.cursor==='pointer',
+       null,{timeout:5000});
+   }catch(err){
+     console.log('hybrid hover debug',JSON.stringify(await hybrid.evaluate(()=>
+        ({cursor:document.getElementById('canvas').style.cursor,
+          pointer:window.__imguiPointerState, touches:navigator.maxTouchPoints,
+          viewport:window.innerWidth}))));
+     throw err;
+   }
+   await hybrid.mouse.move(380,800);
+   await hybrid.waitForFunction(()=>
+     document.getElementById('canvas')?.style.cursor==='default',
+     null,{timeout:5000});
+   console.log('hybrid-mouse-touch: hand cursor restored');
+ }finally{await hybrid.close();}
  // The public 'Liste' tab has 100,000 records; the C++ clipper should
  // submit only the visible items and render immediately on a wheel delta.
  const listPage=await browser.newPage({viewport:{width:390,height:844},
                                       deviceScaleFactor:2,isMobile:true,hasTouch:true});
  try{
    await listPage.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
-   await listPage.waitForTimeout(2400);
+   // Wait for the actual WASM-rendered C++ app, not a fixed delay. On a
+   // cold software-WebGL runner startup can exceed 2.4 seconds, otherwise
+   // this test clicks the blank loading canvas and reports a false failure.
+   await listPage.waitForFunction(() => window.__imguiUIState?.page===0,
+                                  null,{timeout:20000});
    // Hold through at least two frames so real ImGui mouse-down/up are
    // processed, rather than dropping a synthetic 1ms click on WebGL.
    await listPage.mouse.move(339,122);
@@ -169,9 +223,20 @@ try {
    await listPage.waitForFunction(()=>window.__imguiRawWheel?.received>0,
                                   null,{timeout:5000});
    const actualDelta=await listPage.evaluate(()=>window.__imguiRawWheel.y);
-   await listPage.waitForFunction(({before,actualDelta})=>
-       (window.__imguiScrollTotal||0)>=before+actualDelta-1,
-       {before,actualDelta},{timeout:6000});
+   try {
+     await listPage.waitForFunction(({before,actualDelta})=>
+         (window.__imguiScrollTotal||0)>=before+actualDelta-1,
+         {before,actualDelta},{timeout:6000});
+   } catch(error) {
+     console.log('LIST SCROLL DEBUG',JSON.stringify(await listPage.evaluate(({before,actualDelta})=>({
+       before,actualDelta,total:window.__imguiScrollTotal,
+       scroll:window.__imguiScroll,scrollDebug:window.__imguiScrollDebug,
+       mouse:window.__imguiPointerState,raw:window.__imguiRawWheel,
+       page:window.__imguiUIState
+     }),{before,actualDelta})));
+     await listPage.screenshot({path:'visual-review/list-wheel-failed.png'});
+     throw error;
+   }
    const movement=await listPage.evaluate(start=>
        (window.__imguiScrollTotal||0)-start,before);
    if(Math.abs(movement-actualDelta)>1.2)
