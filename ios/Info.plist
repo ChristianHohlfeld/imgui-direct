@@ -7,5 +7,7 @@
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleShortVersionString</key><string>1.0</string>
+<!-- Unlock ProMotion refresh rates above 60Hz on supported iPhones. -->
+<key>CADisableMinimumFrameDurationOnPhone</key><true/>
 <key>UILaunchScreen</key><dict/>
 </dict></plist>

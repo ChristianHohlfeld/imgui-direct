@@ -156,6 +156,19 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 
     self.mtkView.device = self.device;
     self.mtkView.delegate = self;
+    // MTKView defaults to 60 FPS even on ProMotion displays. Request the
+    // active device's refresh capacity so trackpad/finger scroll can redraw
+    // at up to 120 Hz, while the OS remains free to throttle as needed.
+#if TARGET_OS_OSX
+    if (@available(macOS 12.0, *)) {
+        NSScreen* screen = self.view.window.screen ?: NSScreen.mainScreen;
+        if(screen)self.mtkView.preferredFramesPerSecond =
+            std::max((NSInteger)60,screen.maximumFramesPerSecond);
+    }
+#else
+    self.mtkView.preferredFramesPerSecond =
+        std::max((NSInteger)60,UIScreen.mainScreen.maximumFramesPerSecond);
+#endif
 
 #if TARGET_OS_OSX
     ImGui_ImplOSX_Init(self.view);
