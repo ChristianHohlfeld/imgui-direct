@@ -194,7 +194,10 @@ void frame() {
     glClearColor(background.r,background.g,background.b,1);
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    update_canvas_cursor(!isTouchDevice &&
+    // A touch-capable iPad can still have a real mouse/trackpad attached.
+    // Follow the CURRENT pointer source, never only the device capability.
+    update_canvas_cursor(
+        ImGui::GetIO().MouseSource!=ImGuiMouseSource_TouchScreen &&
         ImGui::GetMouseCursor()==ImGuiMouseCursor_Hand);
     bootstrap_frame_ready();
 }
