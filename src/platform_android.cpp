@@ -161,7 +161,14 @@ void command(android_app* a,int32_t c) {
         shutdown();
     } else if(c==APP_CMD_TERM_WINDOW)shutdown();
     else if(c==APP_CMD_GAINED_FOCUS){focused=true;if(ready)ImGui::GetIO().AddFocusEvent(true);}
-    else if(c==APP_CMD_LOST_FOCUS){focused=false;gestures.reset();if(ready)ImGui::GetIO().AddFocusEvent(false);}
+    else if(c==APP_CMD_LOST_FOCUS){
+        focused=false;
+        if(ready){
+            touch::dispatch(gestures.cancel());
+            ui::scroll::state().discard();
+            ImGui::GetIO().AddFocusEvent(false);
+        }else gestures.reset();
+    }
 }
 int32_t input(android_app*,AInputEvent* e) {
     if(!ready)return 0;
@@ -176,6 +183,11 @@ int32_t input(android_app*,AInputEvent* e) {
         if((source & AINPUT_SOURCE_TOUCHSCREEN)==AINPUT_SOURCE_TOUCHSCREEN) {
             const int action=AMotionEvent_getAction(e);
             const int kind=action&AMOTION_EVENT_ACTION_MASK;
+            if(kind==AMOTION_EVENT_ACTION_CANCEL){
+                touch::dispatch(gestures.cancel());
+                ui::scroll::state().discard();
+                return 1;
+            }
             const int changed=(action&AMOTION_EVENT_ACTION_POINTER_INDEX_MASK)>>AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
             std::vector<touch::Contact> active;
             if(kind!=AMOTION_EVENT_ACTION_CANCEL) {

@@ -66,6 +66,12 @@ Paint paint(Options options){
     return {normal,hover,pressed,text,border,
             outline||options.state.selected||options.state.invalid};
 }
+void hand_cursor(bool disabled){
+    if(!disabled &&
+       ImGui::GetIO().MouseSource!=ImGuiMouseSource_TouchScreen &&
+       ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+}
 void focus_ring(){
     if(ImGui::IsItemFocused() && ImGui::GetIO().NavVisible){
         const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
@@ -186,6 +192,7 @@ bool Button(const char* title,Options opt,ImVec2 size){
     }
     if(disabled)ImGui::BeginDisabled();
     const bool clicked=ImGui::Button(title,size) && !disabled;
+    hand_cursor(disabled);
     if(!disabled)focus_ring();
     if(opt.state.loading){
         // GPU-native animated busy indicator, no image and no extra dependency.
@@ -258,7 +265,9 @@ bool Select(const char* name,const char* const* choices,int count,int* selection
     ImGui::SetNextItemWidth(-FLT_MIN);
     const bool valid=*selection>=0&&*selection<count;
     bool changed=false;
-    if(ImGui::BeginCombo("##select",valid?choices[*selection]:"Choose an option")) {
+    const bool open=ImGui::BeginCombo("##select",valid?choices[*selection]:"Choose an option");
+    hand_cursor(field.disabled||field.readOnly);
+    if(open) {
         for(int i=0;i<count;i++){
             bool chosen=i==*selection;
             if(ImGui::Selectable(choices[i],chosen)&&!field.readOnly){
@@ -278,6 +287,7 @@ bool Checkbox(const char* label,bool* value,Field field) {
     if(field.disabled||field.readOnly)ImGui::BeginDisabled();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{9.f*scale(),9.f*scale()});
     bool changed=ImGui::Checkbox(label,value);
+    hand_cursor(field.disabled||field.readOnly);
     if(!field.disabled)focus_ring();
     ImGui::PopStyleVar();
     if(field.disabled||field.readOnly)ImGui::EndDisabled();
@@ -288,6 +298,7 @@ bool Radio(const char* label,int item,int* selected,Field field){
     if(field.disabled||field.readOnly)ImGui::BeginDisabled();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{9.f*scale(),9.f*scale()});
     const bool changed=ImGui::RadioButton(label,*selected==item)&&!field.readOnly;
+    hand_cursor(field.disabled||field.readOnly);
     if(changed)*selected=item;
     if(!field.disabled)focus_ring();
     ImGui::PopStyleVar();
@@ -303,6 +314,7 @@ bool Switch(const char* label,bool* value,Field field) {
     if(field.disabled||field.readOnly)ImGui::BeginDisabled();
     const bool clicked=ImGui::InvisibleButton("##switch",{w,h})&&
                        !field.disabled&&!field.readOnly;
+    hand_cursor(field.disabled||field.readOnly);
     if(clicked)*value=!*value;
     const ImVec2 a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
     const float trackH=23.f*scale(),r=trackH*.5f;

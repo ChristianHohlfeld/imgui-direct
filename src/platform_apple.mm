@@ -325,7 +325,13 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 -(void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
 -(void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
 -(void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
--(void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {[self updateIOWithTouchEvent:event];}
+-(void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
+    touch::dispatch(_touchController.cancel());
+    ui::scroll::state().discard();
+    auto& io=ImGui::GetIO();
+    io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);
+    io.AddMouseButtonEvent(0,false);
+}
 
 -(void)onHover:(UIHoverGestureRecognizer*)recognizer {
     auto& io=ImGui::GetIO();
@@ -369,7 +375,8 @@ static void SetIme(ImGuiContext*,ImGuiViewport*,ImGuiPlatformImeData* data);
 }
 -(void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
-    _touchController.reset();
+    touch::dispatch(_touchController.cancel());
+    ui::scroll::state().discard();
     ImGui::GetIO().AddFocusEvent(false);
     [self.keyboardSink resignFirstResponder];
 }

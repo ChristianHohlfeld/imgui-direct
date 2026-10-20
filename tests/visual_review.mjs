@@ -82,7 +82,18 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
      await page.waitForTimeout(160);
      const end=await page.evaluate(()=>window.__imguiUIState.clicks);
      if(end!==clicked)failures.push('swipe incorrectly clicked native button');
-     console.log('touch-button',JSON.stringify({tap:clicked-first,swipeClicks:end-clicked}));
+     // Explicit OS touchCancel is NOT a finger release or a tap.
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchStart',touchPoints:[{x:105,y:374}]});
+     await page.waitForTimeout(75);
+     await session.send('Input.dispatchTouchEvent',
+       {type:'touchCancel',touchPoints:[]});
+     await page.waitForTimeout(160);
+     const afterCancel=await page.evaluate(()=>window.__imguiUIState.clicks);
+     if(afterCancel!==clicked)failures.push('touchCancel incorrectly clicked native button');
+     console.log('touch-button',JSON.stringify({
+       tap:clicked-first,swipeClicks:end-clicked,cancelClicks:afterCancel-clicked
+     }));
    } finally {await session.detach();}
  }
  // Assert the DOM event's actual CSS delta, not Playwright's requested
@@ -115,6 +126,15 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
    if(Math.abs(moved-90)>1.2)failures.push('1:1 DOM pixel delta mismatch: '+moved);
  }
  if(name==='desktop') {
+  // The canvas-backed native button uses the OS hand cursor like Chrome UI.
+  await page.mouse.move(100,372);
+  await page.waitForFunction(()=>
+    document.getElementById('canvas')?.style.cursor==='pointer',
+    null,{timeout:5000});
+  await page.mouse.move(1400,870);
+  await page.waitForFunction(()=>
+    document.getElementById('canvas')?.style.cursor==='default',
+    null,{timeout:5000});
   await page.mouse.click(730,136);
   await page.waitForTimeout(900);
   await page.screenshot({path:'visual-review/desktop-elements.png'});

@@ -42,7 +42,7 @@ int main() {
     g.tick(10.016);
     a=g.update({{9,0,40}},10.020);
     assert(a.size()==2 && a.back().type==Type::Scroll);
-    assert(std::abs(a.back().second+40.f/60.f)<.001f); // No touch-slop loss
+    assert(std::abs(a.back().second+40.f)<.001f); // Exact drag pixels, no conversion
     g.update({{9,0,60}},10.040);
     g.update({},10.041);
     const auto inertia1=g.tick(10.056);
@@ -65,5 +65,26 @@ int main() {
     a=g.update({{1,10,10}},5.);
     a=g.update({{1,10,50}},5.02,false);
     assert(a.size()==1&&a[0].type==Type::Move); // Active slider: drag, no scroll.
+    // Interrupted tap: never turn an OS cancellation into a click.
+    g.reset();
+    a=g.update({{3,80,80}},20.);
+    assert(a.back().type==Type::Down);
+    a=g.cancel();
+    assert(a.size()==1 && a[0].type==Type::Cancel);
+    assert(g.tick(20.016).empty());
+    assert(g.update({},20.020).empty());
+    // Cancel while coasting stops momentum immediately.
+    g.update({{4,10,10}},21.);
+    a=g.update({{4,10,90}},21.020,true);
+    assert(a.back().type==Type::Scroll && a.back().second==-80.f);
+    g.update({},21.024);
+    g.cancel();
+    assert(g.tick(21.040).empty());
+    // Native long press must not release as a primary-button tap.
+    g.update({{5,20,20}},22.);
+    a=g.tick(22.56);
+    assert(a.size()==2 && a[0].type==Type::Cancel &&
+           a[1].type==Type::LongPress);
+    assert(g.update({},22.6).empty());
     return 0;
 }
