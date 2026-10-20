@@ -85,6 +85,9 @@ EM_BOOL keycb(int kind,const EmscriptenKeyboardEvent* e,void*) {
 EM_BOOL mousecb(int kind,const EmscriptenMouseEvent* e,void*) {
     if(emscripten_get_now()-lastTouch<700.)return EM_TRUE; // suppress synthesized touch mouse events
     auto& io=ImGui::GetIO();
+    // Hybrid iPad/desktop: the last finger event must not make a real
+    // trackpad/mouse hover look like a touch forever.
+    io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
     io.AddMousePosEvent((float)e->targetX,(float)e->targetY);
     if(kind==EMSCRIPTEN_EVENT_MOUSEDOWN || kind==EMSCRIPTEN_EVENT_MOUSEUP) {
         int button=e->button==0?0:e->button==2?1:e->button==1?2:-1;
@@ -106,6 +109,7 @@ EM_BOOL wheelcb(int,const EmscriptenWheelEvent* e,void*) {
         // Browser trackpad pinch is exposed as Ctrl+wheel.
         app::zoom(std::exp(-(float)e->deltaY*.001f));
     } else {
+        ImGui::GetIO().AddMouseSourceEvent(ImGuiMouseSource_Mouse);
         ImGui::GetIO().AddMousePosEvent((float)e->mouse.targetX,(float)e->mouse.targetY);
         ui::scroll::add_wheel((float)e->deltaX,(float)e->deltaY,unit,20.f,page);
     }
