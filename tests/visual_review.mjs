@@ -69,16 +69,6 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
    await page.waitForFunction(initial=>window.__imguiUIState?.clicks===initial+1,
                               first,{timeout:4000});
    const clicked=await page.evaluate(()=>window.__imguiUIState.clicks);
-   // Verify hybrid mouse hover while the button has not moved under scroll.
-   await page.waitForTimeout(780); // avoid Safari's synthesized mouse click
-   await page.mouse.move(105,374);
-   await page.waitForFunction(()=>
-     document.getElementById('canvas')?.style.cursor==='pointer',
-     null,{timeout:4000});
-   await page.mouse.move(385,800);
-   await page.waitForFunction(()=>
-     document.getElementById('canvas')?.style.cursor==='default',
-     null,{timeout:4000});
    const session=await page.context().newCDPSession(page);
    try {
      await session.send('Input.dispatchTouchEvent',
@@ -166,6 +156,36 @@ try {
  await capture('dpi150',1111,803,1.5,false);
  await capture('dpi133',1001,713,1.3333333333,false);
  await capture('dpi300',393,852,3,true);
+ // A touch-enabled laptop (iPad + trackpad-like mixed input) must
+ // switch source back to Mouse on pointer movement after a finger tap.
+ const hybrid=await browser.newPage({viewport:{width:390,height:844},
+                                    deviceScaleFactor:2,hasTouch:true,isMobile:false});
+ try{
+   await hybrid.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
+   await hybrid.waitForFunction(()=>window.__imguiUIState?.page===0,
+                                null,{timeout:20000});
+   await hybrid.touchscreen.tap(105,374);
+   await hybrid.waitForTimeout(850); // suppress only synthesized touch mice
+   await hybrid.mouse.move(380,800);
+   await hybrid.waitForTimeout(80);
+   await hybrid.mouse.move(105,374);
+   try{
+     await hybrid.waitForFunction(()=>
+       document.getElementById('canvas')?.style.cursor==='pointer',
+       null,{timeout:5000});
+   }catch(err){
+     console.log('hybrid hover debug',JSON.stringify(await hybrid.evaluate(()=>
+        ({cursor:document.getElementById('canvas').style.cursor,
+          pointer:window.__imguiPointerState, touches:navigator.maxTouchPoints,
+          viewport:window.innerWidth}))));
+     throw err;
+   }
+   await hybrid.mouse.move(380,800);
+   await hybrid.waitForFunction(()=>
+     document.getElementById('canvas')?.style.cursor==='default',
+     null,{timeout:5000});
+   console.log('hybrid-mouse-touch: hand cursor restored');
+ }finally{await hybrid.close();}
  // The public 'Liste' tab has 100,000 records; the C++ clipper should
  // submit only the visible items and render immediately on a wheel delta.
  const listPage=await browser.newPage({viewport:{width:390,height:844},

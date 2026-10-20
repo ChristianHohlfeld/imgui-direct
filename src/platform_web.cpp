@@ -36,6 +36,9 @@ EM_JS(void, diagnostic_wheel, (float x,float y,float mouseX,float mouseY,int mod
     window.__imguiRawWheel={x,y,mouseX,mouseY,mode,received:(window.__imguiRawWheel?.received||0)+1};
 });
 
+EM_JS(void, report_pointer_source, (int source,int cursor,float x,float y), {
+    window.__imguiPointerState={source,cursor,x,y};
+});
 EM_JS(void, update_canvas_cursor, (int hand), {
     const canvas=document.getElementById('canvas');
     if(!canvas)return;
@@ -196,6 +199,9 @@ void frame() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     // A touch-capable iPad can still have a real mouse/trackpad attached.
     // Follow the CURRENT pointer source, never only the device capability.
+    report_pointer_source((int)ImGui::GetIO().MouseSource,
+                          (int)ImGui::GetMouseCursor(),
+                          ImGui::GetIO().MousePos.x,ImGui::GetIO().MousePos.y);
     update_canvas_cursor(
         ImGui::GetIO().MouseSource!=ImGuiMouseSource_TouchScreen &&
         ImGui::GetMouseCursor()==ImGuiMouseCursor_Hand);
