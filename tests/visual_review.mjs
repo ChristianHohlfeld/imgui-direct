@@ -127,7 +127,7 @@ async function capture(name, width, height, deviceScaleFactor, mobile) {
  }
  if(name==='desktop') {
   // The canvas-backed native button uses the OS hand cursor like Chrome UI.
-  await page.mouse.move(100,372);
+  await page.mouse.move(255,375);
   await page.waitForFunction(()=>
     document.getElementById('canvas')?.style.cursor==='pointer',
     null,{timeout:5000});
