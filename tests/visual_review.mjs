@@ -40,7 +40,9 @@ try{
       }
       if(category===3){
         const before=await page.evaluate(()=>window.__imguiScrollTotal||0);
-        await page.mouse.move(width/2,height-90);await page.mouse.wheel(0,90);await page.waitForTimeout(250);
+        const list=await page.evaluate(()=>window.__imguiItems[102]);assert(list,'List bounds must be reported');
+        await page.mouse.move(list.x+list.w/2,list.y+Math.min(list.h/2,80));
+        await page.mouse.wheel(0,90);await page.waitForTimeout(250);
         const stats=await page.evaluate(()=>({rows:window.__imguiScroll.rowsRendered,moved:(window.__imguiScrollTotal||0)}));
         assert(stats.rows>0&&stats.rows<100,`Virtual list should clip: ${JSON.stringify(stats)}`);
         assert(stats.moved>before,'Virtual list must scroll');

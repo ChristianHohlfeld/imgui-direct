@@ -172,6 +172,9 @@ void virtual_list(){
         space(3);
         const float listHeight=std::max(220.f,ImGui::GetContentRegionAvail().y-22.f);
         ImGui::BeginChild("##virtual-list",{0,listHeight},ImGuiChildFlags_Borders);
+#ifdef __EMSCRIPTEN__
+        {const auto p=ImGui::GetWindowPos(),s=ImGui::GetWindowSize();browser_qa_item(102,p.x,p.y,s.x,s.y);}
+#endif
         constexpr int count=100000;
         const float row=ui::control_height(ui::Size::MD)+4.f;
         ImGuiListClipper clipper;
