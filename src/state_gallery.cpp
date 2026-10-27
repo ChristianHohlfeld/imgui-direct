@@ -8,7 +8,7 @@
 
 #ifdef __EMSCRIPTEN__
 extern "C" void browser_qa_item(int,float,float,float,float);
-extern "C" void browser_qa_review(int,int,int,int,int,int,int,float,float,float,float);
+extern "C" void browser_qa_review(int,int,int,int,int,int,int,float,float,float,float,float,float,float,float);
 #endif
 namespace review {
 namespace {
@@ -28,7 +28,7 @@ constexpr Component components[]={
  {"Navigation",normal|selected|disabled|longText,true},{"Breadcrumbs",normal|empty|longText,true},
  {"Pagination",normal|empty|minimum|maximum|disabled,true},
  {"Accordion",normal|open|closed|disabled,true},{"Collapse",normal|open|closed|disabled,true},
- {"Dropdown",normal|open|closed|disabled,true},{"MenuItem",normal|selected|disabled,true},
+ {"Dropdown",(field&~bit(S::Required))|selected|open|closed|longText,true},{"MenuItem",normal|selected|disabled,true},
  {"ContextMenu",normal|open|closed|disabled,true},{"Modal",normal|open|closed|longText,true},
  {"Card",normal|empty|longText,false},{"Fieldset",normal|disabled|bit(S::ReadOnly)|feedback,true},
  {"Table",normal|empty|selected|disabled,true},{"TreeNode",normal|open|closed|selected|disabled,true},
@@ -36,7 +36,7 @@ constexpr Component components[]={
  {"Badge",normal|feedback|longText,false},{"Alert",normal|feedback|longText,false},
  {"Progress",normal|minimum|maximum|feedback,false},{"RadialProgress",normal|minimum|maximum|feedback,false},
  {"Loading",normal,false},{"Skeleton",normal,false},{"Stat",normal|empty|longText,false},
- {"StatusDot",normal|feedback,false},{"Steps",normal|empty|minimum|maximum,false},
+ {"StatusDot",normal|feedback,false},{"Steps",normal|empty|minimum|maximum|bit(S::Success),false},
  {"TimelineItem",normal|feedback|longText,false},{"Avatar",normal|empty|longText,false},
  {"Kbd",normal|longText,false},{"Tooltip",normal|disabled|longText,true},
  {"Label",normal|bit(S::Required)|longText,false},{"Validation",normal|feedback,false},
@@ -159,7 +159,9 @@ void preview(){
    if(visible)ui::Muted("Position, Rotation und Skalierung.");
    break;}
  case 20:{if(is(S::Open)&&model.choice==0){ImGui::OpenPopup("Aktionen");model.choice=1;}
-   bool opened=ui::BeginDropdown("Aktionen");note();
+   ui::Options o;o.size=size;o.fullWidth=true;o.state={f.disabled,f.loading,is(S::Selected),f.invalid,f.readOnly};
+   o.variant=is(S::Warning)?ui::Variant::Warning:is(S::Success)?ui::Variant::Success:ui::Variant::Outline;
+   bool opened=ui::BeginDropdown(is(S::LongText)?longSample:"Aktionen",o);note();
    if(opened){if(ui::MenuItem("Speichern","Ctrl+S"))++changesCount;ui::MenuItem("Ausgewählt",nullptr,true);ui::MenuItem("Gesperrt",nullptr,false,false);ui::EndDropdown();}break;}
  case 21:{bool clicked=ui::MenuItem("Objekt auswählen","Ctrl+1",model.checked,!f.disabled);direct_note(clicked);if(clicked)model.checked=!model.checked;break;}
  case 22:{if(ui::Button("Kontextmenü öffnen")){ImGui::OpenPopup("context");++changesCount;}note();
@@ -198,7 +200,7 @@ void preview(){
  case 35:ui::Skeleton("one",{0,control_height(size)});ui::Skeleton("two",{0,16});break;
  case 36:ui::Stat(is(S::LongText)?longSample:"Objekte",is(S::Empty)?"—":"1.024","In der aktiven Szene");break;
  case 37:ui::StatusDot(status(),"Status");break;
- case 38:ui::Steps("steps",labels,is(S::Empty)?-1:is(S::Maximum)?2:is(S::Minimum)?0:1);break;
+ case 38:ui::Steps("steps",labels,is(S::Empty)?-1:is(S::Success)?3:is(S::Maximum)?2:is(S::Minimum)?0:1);break;
  case 39:ui::TimelineItem("Projekt geöffnet",is(S::LongText)?longSample:"Zeitpunkt und Beschreibung des Ereignisses",status());break;
  case 40:ui::Avatar(is(S::Empty)?"":is(S::LongText)?"LONG":"CH",size);break;
  case 41:ui::Kbd(is(S::LongText)?"Ctrl + Shift + Alt + S":"Ctrl + S");break;
@@ -241,6 +243,7 @@ void draw(){
    int selected=static_cast<int>(variant);ImGui::SetNextItemWidth(-1);
    if(ImGui::Combo("##variant",&selected,variants,10))variant=static_cast<ui::Variant>(selected);
  }
+ [[maybe_unused]] const auto previewTop=ImGui::GetCursorScreenPos();[[maybe_unused]] const float previewWidth=ImGui::GetContentRegionAvail().x;
  ui::Divider(component(current).name);
  ImGui::Text("%d / %d · %s",current+1,count(),state_name(state));
  preview();
@@ -250,7 +253,7 @@ void draw(){
    ImGui::TextWrapped("Hover %s · Aktiv %s · Fokus %s · Gesperrt %s",info.interaction.hovered?"ja":"nein",info.interaction.held?"ja":"nein",info.interaction.focused?"ja":"nein",info.interaction.disabled?"ja":"nein");
  }else ui::Muted("Anzeigeelement: kein künstlicher Hover-, Klick- oder Disabled-Zustand.");
 #ifdef __EMSCRIPTEN__
- browser_qa_review(current,static_cast<int>(state),changesCount,info.interaction.hovered,info.interaction.held,info.interaction.focused,info.interaction.disabled,info.minimum.x,info.minimum.y,info.maximum.x-info.minimum.x,info.maximum.y-info.minimum.y);
+ browser_qa_review(current,static_cast<int>(state),changesCount,info.interaction.hovered,info.interaction.held,info.interaction.focused,info.interaction.disabled,info.minimum.x,info.minimum.y,info.maximum.x-info.minimum.x,info.maximum.y-info.minimum.y,previewTop.x,previewTop.y,previewWidth,ImGui::GetCursorScreenPos().y-previewTop.y);
 #endif
 }
 }

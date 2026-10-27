@@ -7,10 +7,15 @@ state behaviour. The default gallery now opens the **Zustandsprüfung** inspecto
 ## Reproducible scope
 
 The catalogue in `src/state_gallery.cpp` contains all **48 existing component
-families** and **265 applicable component/state combinations**. Every combination
-is submitted in light/dark themes and desktop/touch layouts: **1,060 native render
+families** and **273 applicable component/state combinations**. Every combination
+is submitted in light/dark themes and desktop/touch layouts: **1,092 native render
 cases**, plus the same browser screenshot matrix. The CI artifact contains named
 PNG files and `states/manifest.json`, rather than one generic screenshot per page.
+The matrix copies the completed real WebGL framebuffer before the browser discards
+it, with independent browser-screenshot pixel comparisons. It is not a replacement
+renderer or a mock UI. Crops include the visible component/state labels; popup and
+notification cases include the complete frame.
+
 Hover, pressed and keyboard focus are tested with real input separately; they are
 not flags that paint a simulated state onto the component.
 
@@ -35,7 +40,8 @@ The ordinary usage gallery remains available under **Beispiele anzeigen**.
 | Breadcrumbs | populated/empty, current item, long path |
 | Pagination | empty, first/middle/last page, disabled |
 | Accordion / Collapse | open/closed, actual toggling, disabled |
-| Dropdown / ContextMenu | open/closed, enabled/disabled actions, actual popup dismissal |
+| Dropdown | open/closed, selected, readonly, disabled, loading, validation and long label; actual popup dismissal |
+| ContextMenu | open/closed, enabled/disabled actions |
 | MenuItem | checked/unchecked, enabled/disabled |
 | Modal | closed/open, cancel/confirm, long content; actual modal focus |
 | Card / Fieldset | empty/content, long content; fieldset additionally inherited disabled and readonly/validation fields |
@@ -47,7 +53,7 @@ The ordinary usage gallery remains available under **Beispiele anzeigen**.
 | Progress / RadialProgress | zero/partial/complete, semantic status |
 | Loading / Skeleton | busy / placeholder display, sizes; no pretend clickable state |
 | Stat / Avatar / Kbd / Divider / Typography | normal, empty or long content where applicable |
-| Steps | not started, first/middle/last step |
+| Steps | pending, current, completed; not started, first/middle/last and all completed |
 | Tooltip | pointer hover, keyboard focus, disabled explanation, long content |
 | Label / Validation | required indicator; explicit none/success/warning/error feedback |
 | Toast | empty queue, visible semantic status, long message, dismissal and expiration |
@@ -83,7 +89,7 @@ into implemented DaisyUI families.
 
 ## Checks and limits
 
-`ui_full_state_audit` checks all 1,060 cases for balanced style/ID/disabled scopes;
+`ui_full_state_audit` checks all 1,092 cases for balanced style/ID/disabled scopes;
 it additionally sends mouse, text and keyboard events, verifies locked fields,
 label hit areas, touch hover suppression, size geometry and actual focus activation.
 `state_review.mjs` renders the complete browser matrix, attempts mutations against

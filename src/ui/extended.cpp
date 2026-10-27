@@ -139,11 +139,26 @@ void Stat(const char* label,const char* value,const char* description){
     ImGui::EndGroup();
 }
 void Steps(const char* id,std::span<const char* const> labels,int current){
-    ImGui::PushID(id);
-    // Vertical steps work on touch and narrow sidebars with arbitrary text lengths.
+    ImGui::PushID(id);const float diameter=24.f*scale(),gap=8.f*scale();
+    const float width=std::max(1.f,ImGui::GetContentRegionAvail().x-diameter-gap);
     for(std::size_t i=0;i<labels.size();++i){
-        const bool reached=static_cast<int>(i)<=current;
-        ImGui::TextColored(v(reached?palette().primary:palette().baseContent),"%d. %s",static_cast<int>(i)+1,text(labels[i]));
+        const auto p=ImGui::GetCursorScreenPos();const auto measured=ImGui::CalcTextSize(text(labels[i]),nullptr,false,width);
+        const float h=std::max(diameter,measured.y);const ImVec2 center{p.x+diameter*.5f,p.y+diameter*.5f};
+        const bool complete=static_cast<int>(i)<current,active=static_cast<int>(i)==current;
+        auto* d=ImGui::GetWindowDrawList();const Color color=complete?palette().success:active?palette().primary:palette().base300;
+        if(i+1<labels.size())d->AddLine({center.x,center.y+diameter*.5f},{center.x,p.y+h+ImGui::GetStyle().ItemSpacing.y+diameter*.5f},detail::ink(color),2.f*scale());
+        if(complete||active)d->AddCircleFilled(center,diameter*.5f,detail::ink(color),24);
+        else d->AddCircle(center,diameter*.5f,detail::ink(color),24,1.5f*scale());
+        if(complete){
+            const auto c=detail::ink(palette().base100);
+            d->AddLine({center.x-5.f*scale(),center.y},{center.x-1.f*scale(),center.y+4.f*scale()},c,2.f*scale());
+            d->AddLine({center.x-1.f*scale(),center.y+4.f*scale()},{center.x+6.f*scale(),center.y-4.f*scale()},c,2.f*scale());
+        }else{
+            char number[16];ImFormatString(number,sizeof(number),"%d",static_cast<int>(i)+1);const auto s=ImGui::CalcTextSize(number);
+            d->AddText({center.x-s.x*.5f,center.y-s.y*.5f},detail::ink(active?palette().primaryContent:palette().baseContent),number);
+        }
+        d->AddText(nullptr,ImGui::GetFontSize(),{p.x+diameter+gap,p.y+(h-measured.y)*.5f},ImGui::GetColorU32(ImGuiCol_Text),text(labels[i]),nullptr,width);
+        ImGui::Dummy({diameter+gap+std::min(width,measured.x),h});
     }
     ImGui::PopID();
 }

@@ -5,7 +5,23 @@ const url=process.env.DEMO_URL||'https://christianhohlfeld.github.io/imgui-direc
 const root='visual-review/states';fs.mkdirSync(root,{recursive:true});
 const states=['normal','selected','disabled','readonly','loading','error','warning','success','empty','mixed','open','closed','minimum','maximum','long','required'];
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
-const manifest={catalog:null,renders:[],interactions:[]};
+const manifest={capture:'actual completed WebGL framebuffer; overlays included; physical pixels',catalog:null,renders:[],interactions:[],crossChecks:[]};
+async function captureFrame(page,path,clip){
+ const id=await page.evaluate(clip=>{
+   const id=(window.__imguiCaptureSequence||0)+1;window.__imguiCaptureSequence=id;
+   window.__imguiCaptureRequest={id,clip};return id;
+ },clip);
+ await page.waitForFunction(id=>window.__imguiCaptureResult?.id===id,id);
+ const result=await page.evaluate(()=>window.__imguiCaptureResult);
+ const bytes=Buffer.from(result.data.split(',')[1],'base64');fs.writeFileSync(path,bytes);return bytes;
+}
+async function compareFrames(page,a,b){
+ return page.evaluate(async ({a,b})=>{
+   const decode=async src=>{const img=new Image();img.src=src;await img.decode();const c=document.createElement('canvas');c.width=img.width;c.height=img.height;c.getContext('2d').drawImage(img,0,0);return {w:c.width,h:c.height,data:c.getContext('2d').getImageData(0,0,c.width,c.height).data};};
+   const x=await decode(a),y=await decode(b);if(x.w!==y.w||x.h!==y.h)return {sameSize:false,x:[x.w,x.h],y:[y.w,y.h]};
+   let sum=0;for(let i=0;i<x.data.length;++i)sum+=Math.abs(x.data[i]-y.data[i]);return {sameSize:true,meanChannelError:sum/x.data.length};
+ },{a:'data:image/png;base64,'+a.toString('base64'),b:'data:image/png;base64,'+b.toString('base64')});
+}
 async function configure(page,component,state,dark,size=2){
  await page.evaluate(({component,state,dark,size})=>{
    document.getElementById('native-input').blur();window.__reviewRequested=performance.now();
@@ -36,7 +52,18 @@ try{
     // A second frame settles popup sizing, layout and the font atlas.
     await page.waitForTimeout(35);
     const file=`${mode}-${dark?'dark':'light'}-${String(c.id).padStart(2,'0')}-${c.name}-${states[s]}.png`;
-    await page.screenshot({path:`${root}/${file}`,scale:'css'});
+    const bounds=await page.evaluate(()=>window.__imguiReview.preview);
+    const viewport=page.viewportSize();
+    const clip={x:Math.max(0,bounds.x),y:Math.max(0,bounds.y),width:Math.max(1,Math.min(bounds.w,viewport.width-bounds.x)),height:Math.max(1,Math.min(bounds.h+8,viewport.height-bounds.y))};
+    // Context-menu/modal/toast overlays may lie outside the inline component.
+    const overlay=[20,22,23,47].includes(c.id);
+    const image=await captureFrame(page,`${root}/${file}`,overlay?undefined:clip);
+    if(c.id===4&&s===2){
+      const independent=await page.screenshot({...(overlay?{}:{clip}),scale:'device'});
+      const comparison=await compareFrames(page,image,independent);
+      assert(comparison.sameSize&&comparison.meanChannelError<1,`Framebuffer must match independent browser screenshot: ${JSON.stringify(comparison)}`);
+      manifest.crossChecks.push({mode,dark:!!dark,...comparison});
+    }
     const review=await page.evaluate(()=>window.__imguiReview);
     if(c.id<=13&&[2,3,4].includes(s)){
       const before=review.changes;
@@ -48,6 +75,7 @@ try{
       manifest.interactions.push(`${mode}/${c.name}/${states[s]}:locked`);
     }
     manifest.renders.push({component:c.name,state:states[s],mode,dark:!!dark,file});
+    if(manifest.renders.length%50===0)console.log(mode,manifest.renders.length,'state frames captured');
    }
   }
   // Real pointer transitions, plus keyboard focus. Never force a visual hover flag.

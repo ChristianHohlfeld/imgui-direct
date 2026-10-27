@@ -59,7 +59,7 @@ inline void field_begin(Field f,bool lockReadOnly=false){
     const auto p=field_visual(f);
     ImGui::PushStyleColor(ImGuiCol_Border,vec(p.border));
     ImGui::PushStyleColor(ImGuiCol_FrameBg,vec(p.normal));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,vec(p.hover));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,vec(ImGui::GetIO().MouseSource==ImGuiMouseSource_TouchScreen?p.normal:p.hover));
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive,vec(p.active));
     ImGui::PushStyleColor(ImGuiCol_CheckMark,vec(p.accent));
     ImGui::PushStyleColor(ImGuiCol_SliderGrab,vec(p.accent));
