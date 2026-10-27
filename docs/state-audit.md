@@ -75,6 +75,9 @@ into implemented DaisyUI families.
   ellipsis and a full tooltip. Narrow tabs wrap rather than return without rendering.
 - Empty selects are visibly empty instead of vanishing. Badges and field labels wrap.
   Heading restores the host's previous window font scale.
+- Scrollable tables, lists, cards and split panes share the native focus scope,
+  so Tab can cross their child-window boundaries. Changing the inspector example
+  reinitializes navigation rather than keeping a focus ID for a vanished widget.
 - `Validation(message, ValidationState)` provides explicit success/warning/error
   presentation. The existing bool overload remains source compatible.
 

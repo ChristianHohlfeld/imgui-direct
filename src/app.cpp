@@ -360,7 +360,7 @@ void app::draw(){
     browser_input_frame();
 #endif
     if(pageChanged)ImGui::SetNextWindowScroll({0,0});
-    ImGui::BeginChild("##gallery-content",{0,0});
+    ImGui::BeginChild("##gallery-content",{0,0},ImGuiChildFlags_NavFlattened);
     if(d.page==0){
         introduction("Grundelemente","Alles, was eine klare Oberfläche braucht.");
         const bool columns=!narrow&&ImGui::GetContentRegionAvail().x>720.f;

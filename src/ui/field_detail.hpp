@@ -23,10 +23,12 @@ inline void label(const char* value,Field f){
 }
 inline void tooltip_text(const char* begin,const char* end=nullptr){
     if(!begin)return;
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha,1.f);
+    ImGui::PushStyleColor(ImGuiCol_Text,vec(palette().baseContent));
     ImGui::BeginTooltip();
     const float width=std::max(40.f,std::min(360.f*scale(),ImGui::GetIO().DisplaySize.x-24.f*scale()));
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX()+width);ImGui::TextUnformatted(begin,end);ImGui::PopTextWrapPos();
-    ImGui::EndTooltip();
+    ImGui::EndTooltip();ImGui::PopStyleColor();ImGui::PopStyleVar();
 }
 inline void hint(Field f){
     const auto visual=field_visual(f);

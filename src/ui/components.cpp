@@ -63,10 +63,14 @@ Paint paint(Options options){
         pressed=blend(normal,p.error,.24f);
         text=p.error;
     }
+    if(options.state.readOnly&&!options.state.invalid){
+        normal=p.base200;hover=pressed=normal;text=p.baseContent;
+        border=options.state.selected?base:p.base300;
+    }
     // Preserve semantic contrast for native button content (hover and
     // pressed feedback are conveyed by the background, not flickering text).
     return {normal,hover,pressed,text,border,
-            outline||options.state.selected||options.state.invalid};
+            outline||options.state.selected||options.state.invalid||options.state.readOnly};
 }
 using detail::focus_ring;
 using detail::label;
@@ -391,7 +395,7 @@ void EndModal(){ImGui::EndPopup();}
 bool BeginCard(const char* id,float height){
     ImGui::PushStyleColor(ImGuiCol_ChildBg,vec(palette().base200));
     ImGui::PushStyleColor(ImGuiCol_Border,vec(palette().base300));
-    ImGuiChildFlags flags=ImGuiChildFlags_Borders;
+    ImGuiChildFlags flags=ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened;
     if(height<=0.f)flags|=ImGuiChildFlags_AutoResizeY;
     return ImGui::BeginChild(id,{0,height<=0?0:height},flags);
 }

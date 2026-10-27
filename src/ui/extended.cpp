@@ -179,7 +179,11 @@ bool BeginTable(const char* id,std::span<const TableColumn> columns,TableOptions
     auto flags=options.flags;
     if(options.sortable)flags|=ImGuiTableFlags_Sortable;
     if(options.height>0)flags|=ImGuiTableFlags_ScrollY;
-    if(!ImGui::BeginTable(id,static_cast<int>(columns.size()),flags,{0,options.height}))return false;
+    const auto pending=GImGui->NextWindowData;
+    if(flags&(ImGuiTableFlags_ScrollY|ImGuiTableFlags_ScrollX))ImGui::SetNextWindowChildFlags(ImGuiChildFlags_NavFlattened,true);
+    if(!ImGui::BeginTable(id,static_cast<int>(columns.size()),flags,{0,options.height})){
+        GImGui->NextWindowData=pending;return false;
+    }
     for(std::size_t i=0;i<columns.size();++i){const auto& c=columns[i];
         ImGui::TableSetupColumn(text(c.label),c.flags|(c.width>0?ImGuiTableColumnFlags_WidthFixed:0),c.width,static_cast<ImGuiID>(i));}
     ImGui::TableSetupScrollFreeze(0,1);ImGui::TableHeadersRow();return true;
@@ -188,7 +192,7 @@ void EndTable(){ImGui::EndTable();}
 int VirtualList(const char* id,int count,float height,float rowHeight,RowRenderer render,void* user){
     if(count<=0||!render||!std::isfinite(rowHeight)||rowHeight<=0||!std::isfinite(height)||height<=0)return 0;
     int submitted=0;
-    if(ImGui::BeginChild(id,{0,height},ImGuiChildFlags_Borders)){
+    if(ImGui::BeginChild(id,{0,height},ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened)){
         ImGuiListClipper clip;clip.Begin(count,rowHeight);
         while(clip.Step())for(int row=clip.DisplayStart;row<clip.DisplayEnd;++row){
             ImGui::PushID(row);render(row,user);ImGui::PopID();++submitted;
@@ -228,7 +232,7 @@ bool BeginSplit(const char* id,float* fraction,ImVec2 size,bool vertical,float m
     store->SetVoidPtr(ImGui::GetID("##split_ratio"),fraction);
     if(fraction)*fraction=ratio;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{0,0});
-    return ImGui::BeginChild("##first",first,ImGuiChildFlags_Borders);
+    return ImGui::BeginChild("##first",first,ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened);
 }
 bool NextSplit(){
     ImGui::EndChild();auto* s=ImGui::GetStateStorage();
@@ -258,7 +262,7 @@ bool NextSplit(){
     }
     detail::capture_control();
     if(!vertical)ImGui::SameLine(0,0);
-    return ImGui::BeginChild("##second",vertical?ImVec2(x,std::max(1.f,y-first-bar)):ImVec2(std::max(1.f,x-first-bar),y),ImGuiChildFlags_Borders);
+    return ImGui::BeginChild("##second",vertical?ImVec2(x,std::max(1.f,y-first-bar)):ImVec2(std::max(1.f,x-first-bar),y),ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened);
 }
 void EndSplit(){
     ImGui::EndChild();
@@ -298,10 +302,12 @@ bool FileInput(const char* id,const char* name,FilePicker picker,Field field){
     ImGui::PushID(id);Label(id,field.required);
     Options o;o.size=field.size;o.variant=Variant::Outline;o.state.disabled=field.disabled||!picker.request;
     o.state.readOnly=field.readOnly;o.state.loading=field.loading;o.state.invalid=field.invalid||field.validation==ValidationState::Error;
+    if(field.validation==ValidationState::Warning)o.variant=Variant::Warning;
+    if(field.validation==ValidationState::Success)o.variant=Variant::Success;
     const bool request=Button("Datei auswählen",o);
     const auto control=GImGui->LastItemData;
     if(name&&*name)ImGui::TextWrapped("%s",name);
-    if(field.help)Validation(field.help,!field.invalid);
+    if(field.help)Validation(field.help,field.invalid?ValidationState::Error:field.validation);
     GImGui->LastItemData=control;ImGui::PopID();
     if(request)picker.request(picker.user);
     return request;

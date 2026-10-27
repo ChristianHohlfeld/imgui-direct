@@ -10,7 +10,7 @@ async function clickItem(page,id,touch=false){
   if(touch){const cdp=await page.context().newCDPSession(page);
     try{await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});await page.waitForTimeout(80);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
     finally{await cdp.detach();}
-  }else{await page.mouse.move(x,y);await page.mouse.down();await page.waitForTimeout(80);await page.mouse.up();}
+  }else{await page.mouse.move(x,y);await page.waitForTimeout(50);await page.mouse.down();await page.waitForTimeout(80);await page.mouse.up();}
 }
 try{
   for(const [name,width,height,dpr,touch] of [['desktop',1440,1000,1,false],['mobile',390,844,2,true],['ipad',820,1180,2,true],['dpi125',1235,777,1.25,false],['dpi150',1111,803,1.5,false]]){
@@ -20,9 +20,14 @@ try{
     await page.waitForFunction(()=>window.__imguiItems?.[8]&&document.getElementById('status').textContent==='');
     await clickItem(page,0,touch);
     await page.waitForFunction(()=>window.__imguiItems?.[100]&&window.__imguiUIState.page===0);
+    await page.waitForTimeout(200); // settle newly-created auto-resizing example cards
     const initial=await page.evaluate(()=>window.__imguiUIState.clicks);
     await clickItem(page,100,touch);
-    await page.waitForFunction(n=>window.__imguiUIState.clicks===n+1,initial);
+    await page.waitForFunction(n=>window.__imguiUIState.clicks===n+1,initial).catch(async error=>{
+      await page.screenshot({path:`visual-review/${name}-action-failure.png`});
+      console.log('action-failure',await page.evaluate(()=>({state:window.__imguiUIState,items:window.__imguiItems,errors:window.__imguiReview})));
+      throw error;
+    });
     // Exercise every category from its actual C++ bounds, not brittle pixel constants.
     for(let category=0;category<8;++category){
       await clickItem(page,category,touch);

@@ -46,15 +46,27 @@ int main(){
  review::select(0,review::State::Normal);frame();frame();info=review::primary();
  io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);io.AddMousePosEvent(info.minimum.x+20,info.minimum.y+15);frame();assert(review::primary().interaction.hovered);
  io.AddMouseButtonEvent(0,true);frame();assert(review::primary().interaction.held);
- io.AddMouseButtonEvent(0,false);frame();
+ io.AddMouseButtonEvent(0,false);frame();assert(review::changes()==1);
  io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);io.AddMousePosEvent(info.minimum.x+21,info.minimum.y+16);frame();frame();assert(!review::primary().interaction.hovered);
  io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
  // Actual keyboard focus/activation, with native help content following field.
  begin();bool checked=false;ui::Field f;f.help="Help after actual control";ui::Checkbox("check",&checked,f);
  const auto checkbox=ui::last_control();assert(checkbox.id==ImGui::GetItemID());
- ImGui::SetNavID(checkbox.id,ImGuiNavLayer_Main,0,ImRect(checkbox.minimum,checkbox.maximum));ImGui::SetNavCursorVisible(true);end();
+ ImGui::SetNavID(checkbox.id,ImGuiNavLayer_Main,ImGui::GetCurrentFocusScope(),ImRect(checkbox.minimum,checkbox.maximum));ImGui::SetNavCursorVisible(true);end();
  io.AddKeyEvent(ImGuiKey_Space,true);begin();ui::Checkbox("check",&checked,f);end();
  io.AddKeyEvent(ImGuiKey_Space,false);begin();ui::Checkbox("check",&checked,f);end();assert(checked);
+ // Traverse every enabled primary target with real Tab events, including child panes.
+ for(int c=0;c<review::count();++c){
+  if(!review::component(c).interactive)continue;
+  review::select(c,review::State::Normal);frame();frame();auto target=review::primary();
+  if(target.maximum.x<=target.minimum.x||target.interaction.disabled)continue;
+  bool focused=false;
+  for(int attempt=0;attempt<24&&!focused;++attempt){
+   io.AddKeyEvent(ImGuiKey_Tab,true);frame();io.AddKeyEvent(ImGuiKey_Tab,false);frame();focused=review::primary().interaction.focused;
+  }
+  if(!focused)std::fprintf(stderr,"Tab failed: %d %s\n",c,review::component(c).name);
+  assert(focused);
+ }
  // Every size affects check/radio field geometry; touch minimums remain enforced.
  for(bool touch:{false,true})for(int s=0;s<5;++s){
   ui::set_touch(touch);begin();f={};f.size=static_cast<ui::Size>(s);bool value=false;ui::Checkbox("sized",&value,f);

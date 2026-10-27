@@ -74,7 +74,7 @@ void direct_note(bool changed=false){
 void list_row(int row,void*){
  char label[64];std::snprintf(label,sizeof(label),"Objekt %05d",row);
  bool clicked=ImGui::Selectable(label,model.row==row,0,{0,ui::control_height(size)-ImGui::GetStyle().ItemSpacing.y});
- if(row==0)direct_note(clicked);
+ if(row==0||ImGui::IsItemFocused()||ImGui::IsItemHovered())direct_note();
  if(clicked){model.row=row;++changesCount;}
 }
 void reset(){
@@ -112,7 +112,12 @@ void preview(){
  const bool initial=closePending;
  if(closePending){
    if(!GImGui->OpenPopupStack.empty())ImGui::ClosePopupToLevel(0,true);
-   ImGui::ClearActiveID();closePending=false;
+   ImGui::ClearActiveID();
+   // Replacing the entire preview invalidates its old NavId. Reinitialize
+   // native navigation instead of keeping Tab anchored to a vanished item.
+   ImGui::FocusWindow(ImGui::GetCurrentWindow());
+   ImGui::NavInitWindow(ImGui::GetCurrentWindow(),true);
+   closePending=false;
  }
  primaryInfo={};ImGui::PushID(current);ImGui::PushID(static_cast<int>(state));
  auto f=options();const char* choices[]={"Szene","Assets","Einstellungen"};
@@ -175,7 +180,7 @@ void preview(){
      if(is(S::Empty)){ImGui::TableNextRow();ImGui::TableNextColumn();ui::Muted("Keine Datensätze.");}
      else for(int i=0;i<5;++i){int row=descending?4-i:i;ImGui::TableNextRow();ImGui::TableNextColumn();ImGui::PushID(row);
        char text[32];std::snprintf(text,sizeof(text),"Objekt %d",row+1);bool clicked=ImGui::Selectable(text,model.row==row,ImGuiSelectableFlags_SpanAllColumns);
-       if(i==0)direct_note(clicked);
+       if(i==0||ImGui::IsItemFocused()||ImGui::IsItemHovered())direct_note();
        if(clicked){model.row=row;++changesCount;}ImGui::TableNextColumn();ImGui::Text("%d",row+1);ImGui::PopID();}
      ui::EndTable();}break;}
  case 27:{if(initial)ImGui::SetNextItemOpen(is(S::Open),ImGuiCond_Always);
