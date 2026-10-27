@@ -34,15 +34,17 @@ void mark([[maybe_unused]] int id){
 #endif
 }
 void gallery_navigation(){
-    static const char* names[]={"Buttons","Formulare","Design","Liste","Navigation","Daten","Editor","Layout"};
+    static const char* names[]={"Buttons","Eingabe","Design","Liste","Menüs","Daten","Editor","Layout"};
     const float gap=ImGui::GetStyle().ItemSpacing.x;
     const float per=std::max(1.f,(ImGui::GetContentRegionAvail().x-gap*3)/4);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{5.f*ui::scale(),6.f*ui::scale()});
     for(int i=0;i<8;++i){
         if(i%4)ImGui::SameLine();
         ImGui::PushID(i);ui::Options opt;opt.size=ui::Size::SM;opt.variant=ui::Variant::Ghost;opt.state.selected=d.page==i;
         if(ui::Button(names[i],opt,{per,0})){d.page=i;ImGui::SetScrollY(0);}
         mark(i);ImGui::PopID();
     }
+    ImGui::PopStyleVar();
 }
 
 void space(float n=8.f){ImGui::Dummy({0,n*ui::scale()});}

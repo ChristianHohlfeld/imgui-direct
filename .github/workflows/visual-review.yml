@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   screenshot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
           python3 -m http.server 8765 -d build-web > /tmp/visual-http.log 2>&1 &
           sleep 2
           curl --fail http://127.0.0.1:8765/index.html >/dev/null
-      - name: Capture candidate WebGL2 rendering and daisyUI examples
+      - name: Exercise all C++ components and capture WebGL2 rendering
         run: node tests/visual_review.mjs
         env:
           DEMO_URL: http://127.0.0.1:8765/index.html
