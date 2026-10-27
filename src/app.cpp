@@ -13,6 +13,7 @@ extern "C" void browser_input_frame();
 extern "C" void browser_input_region(float,float,float,float,int);
 extern "C" void browser_qa_state(int page,int clicks);
 extern "C" void browser_qa_item(int id,float x,float y,float w,float h);
+extern "C" void browser_qa_field(int id,const char* value);
 #endif
 
 namespace {
@@ -98,6 +99,9 @@ void fields(bool narrow){
         if(focusInput){ImGui::SetKeyboardFocusHere();focusInput=false;}
         ui::Input("Name",d.name,sizeof(d.name),"Vollständiger Name",required);
         ui::Input("E-Mail",d.email,sizeof(d.email),"name@beispiel.de");
+#ifdef __EMSCRIPTEN__
+        browser_qa_field(0,d.name);browser_qa_field(1,d.email);
+#endif
         static const char* options[]={"Privat","Team","Unternehmen"};
         ui::Select("Bereich",options,3,&d.choice);
         space();

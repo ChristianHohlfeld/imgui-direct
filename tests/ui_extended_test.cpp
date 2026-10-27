@@ -38,6 +38,18 @@ int main(){
     IMGUI_CHECKVERSION();ImGui::CreateContext();
     auto& io=ImGui::GetIO();io.IniFilename=nullptr;io.DisplaySize={720,900};io.DeltaTime=1.f/60;
     ui::initialize();unsigned char* pixels;int w,h;io.Fonts->GetTexDataAsRGBA32(&pixels,&w,&h);
+    int observed=0;
+    ui::SetInputObserver([](ImVec2 a,ImVec2 b,bool,void* user){
+        assert(b.x>a.x&&b.y>a.y);++*static_cast<int*>(user);
+    },&observed);
+    begin();char input[32]="text";
+    ui::Input("Input##one",input,sizeof(input));
+    ui::Textarea("Textarea##two",input,sizeof(input));
+    const int editable=observed;
+    ui::Field disabled;disabled.disabled=true;ui::Input("Disabled",input,sizeof(input),"",disabled);
+    ui::Field readOnly;readOnly.readOnly=true;ui::Input("Readonly",input,sizeof(input),"",readOnly);
+    ui::BeginFieldset("parent-disabled","Inherited",true);ui::Input("Inherited",input,sizeof(input));ui::EndFieldset();
+    assert(editable==2&&observed==editable);end();ui::SetInputObserver(nullptr);
     bool toggled=false;
     begin();const auto origin=ImGui::GetCursorScreenPos();ui::Switch("switch",&toggled);const auto switchPos=center();end();
     // Public switch's last item is its label, so use a point in the switch itself.

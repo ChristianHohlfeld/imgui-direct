@@ -32,7 +32,9 @@ try{
         await page.touchscreen.tap(region.x+20,region.y+region.height/2);
         await page.waitForTimeout(200);
         assert(await page.evaluate(()=>document.activeElement===document.getElementById('native-input')),'IME bridge must focus the selected input');
+        const before=await page.evaluate(()=>window.__imguiFields[1]);
         await page.evaluate(()=>{const e=document.getElementById('native-input');e.value='Ä';e.dispatchEvent(new Event('input',{bubbles:true}));});
+        await page.waitForFunction(before=>window.__imguiFields[1]!==before&&window.__imguiFields[1].includes('Ä'),before);
         assert.equal(await page.evaluate(()=>window.__imguiUIState.page),1,'IME focus must preserve category');
         await page.evaluate(()=>document.getElementById('native-input').blur());
       }

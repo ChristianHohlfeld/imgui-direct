@@ -53,6 +53,11 @@ EM_JS(void, browser_qa_item, (int id,float x,float y,float w,float h), {
     window.__imguiItems[id]={x,y,w,h};
 });
 
+EM_JS(void, browser_qa_field, (int id,const char* value), {
+    window.__imguiFields=window.__imguiFields||{};
+    window.__imguiFields[id]=UTF8ToString(value);
+});
+
 ImGuiKey mapkey(const char* k) {
     if(std::strncmp(k,"Key",3)==0 && std::strlen(k)==4 && k[3]>='A'&&k[3]<='Z') return (ImGuiKey)(ImGuiKey_A+k[3]-'A');
     if(std::strncmp(k,"Digit",5)==0 && std::strlen(k)==6 && k[5]>='0'&&k[5]<='9') return (ImGuiKey)(ImGuiKey_0+k[5]-'0');

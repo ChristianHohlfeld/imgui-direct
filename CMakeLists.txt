@@ -3,6 +3,7 @@ project(imgui_direct LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(UI_BUILD_DEMO "Build platform application" ${PROJECT_IS_TOP_LEVEL})
+option(UI_BUILD_TESTS "Build component-library tests" ${PROJECT_IS_TOP_LEVEL})
 option(UI_EMBED_FONT "Embed pinned Inter font (requires Python and build-time download)" ${PROJECT_IS_TOP_LEVEL})
 set(UI_IMGUI_TARGET "" CACHE STRING "Existing Dear ImGui CMake target, built from the pinned version")
 include(FetchContent)
@@ -114,7 +115,7 @@ endif() # UI_BUILD_DEMO
 
 # Pure C++ deterministic touch tests (no test framework or new dependencies).
 include(CTest)
-if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+if(UI_BUILD_TESTS AND BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
   add_executable(touch_test tests/touch_test.cpp)
   target_include_directories(touch_test PRIVATE src)
   add_test(NAME touch_gestures COMMAND touch_test)

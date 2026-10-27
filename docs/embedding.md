@@ -21,7 +21,7 @@ target_link_libraries(my_engine PRIVATE imgui_direct::ui)
 ImGui copy, platform backend, Python or font download is introduced. Without
 `UI_IMGUI_TARGET`, CMake fetches and builds the pinned ImGui core. Library-only
 builds do not probe X11, OpenGL, Android, Apple or Windows SDKs.
-`UI_BUILD_DEMO` and `UI_EMBED_FONT` default off when added as a subdirectory.
+`UI_BUILD_DEMO`, `UI_BUILD_TESTS` and `UI_EMBED_FONT` default off when added as a subdirectory.
 The demo defaults to embedded Inter; engines can use their existing font atlas.
 Do not point the demo at an external target: the demo owns platform backends.
 
