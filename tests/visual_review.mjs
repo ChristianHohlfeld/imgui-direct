@@ -17,7 +17,9 @@ try{
     const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:dpr,isMobile:touch,hasTouch:touch});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
     const response=await page.goto(url,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);
-    await page.waitForFunction(()=>window.__imguiItems?.[100]&&document.getElementById('status').textContent==='');
+    await page.waitForFunction(()=>window.__imguiItems?.[8]&&document.getElementById('status').textContent==='');
+    await clickItem(page,0,touch);
+    await page.waitForFunction(()=>window.__imguiItems?.[100]&&window.__imguiUIState.page===0);
     const initial=await page.evaluate(()=>window.__imguiUIState.clicks);
     await clickItem(page,100,touch);
     await page.waitForFunction(n=>window.__imguiUIState.clicks===n+1,initial);

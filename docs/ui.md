@@ -159,3 +159,12 @@ See [embedding.md](embedding.md) for the CMake target, frame/input/render contra
 async host capabilities and Kern's WASI adapter boundary. The full DaisyUI
 selection, including intentionally excluded/deferred families, is in
 [component-coverage.md](component-coverage.md).
+
+## State contract
+
+See [state-audit.md](state-audit.md) for the 48-family state catalogue, field-state
+precedence, genuine interaction checks and the complete screenshot matrix.
+`Field` now additionally accepts `loading`, `validation` (None/Success/Warning/Error)
+and `indeterminate` (Checkbox only). Existing aggregate initializers remain valid.
+`last_control()` returns the actual native control's ID, bounds and interaction,
+even after helper text; hover/press/focus are always derived from real input.

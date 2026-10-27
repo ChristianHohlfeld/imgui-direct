@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "state_gallery.hpp"
 #include "ui/theme.hpp"
 #include "ui/scroll.hpp"
 #include "touch_imgui.hpp"
@@ -223,4 +224,20 @@ extern "C" EMSCRIPTEN_KEEPALIVE void mobile_control(int key) {
     case 38:mapped=ImGuiKey_UpArrow;break;case 40:mapped=ImGuiKey_DownArrow;break;
     case 36:mapped=ImGuiKey_Home;break;case 35:mapped=ImGuiKey_End;break;case 46:mapped=ImGuiKey_Delete;break;}
     if(mapped!=ImGuiKey_None){auto& io=ImGui::GetIO();io.AddKeyEvent(mapped,true);io.AddKeyEvent(mapped,false);}
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void gallery_review(int component,int state,int dark,int size){
+    app::review_configure(component,state,dark,size);
+}
+EM_JS(void, browser_qa_review,(int component,int state,int changes,int hover,int active,int focused,int disabled,float x,float y,float w,float h),{
+    window.__imguiReview={time:performance.now(),component,state,changes,hover:!!hover,active:!!active,focused:!!focused,disabled:!!disabled,rect:{x,y,w,h}};
+});
+
+EM_JS(void, browser_qa_catalog,(int id,const char* name,unsigned states,int interactive),{
+    window.__imguiReviewCatalog=window.__imguiReviewCatalog||[];
+    window.__imguiReviewCatalog[id]={id,name:UTF8ToString(name),states,interactive:!!interactive};
+});
+
+extern "C" EMSCRIPTEN_KEEPALIVE void gallery_review_variant(int variant){
+    review::set_variant(static_cast<ui::Variant>(std::clamp(variant,0,9)));
 }

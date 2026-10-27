@@ -1,5 +1,6 @@
 #include "ui/extended.hpp"
 #include "ui/scroll.hpp"
+#include "ui/field_detail.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cfloat>
@@ -16,24 +17,11 @@ Color statusColor(Status s){
     case Status::Error:return palette().error;default:return palette().info;}
 }
 float unit(float f){return std::isfinite(f)?std::clamp(f,0.f,1.f):0.f;}
-// Reuses field semantics without taking ownership of data or input lifetimes.
-struct EditScope {
-    Field field;
-    EditScope(const char* label,Field f):field(f){
-        ImGui::PushID(label);Label(label,f.required);
-        ImGui::BeginDisabled(f.disabled||f.readOnly);
-        ImGui::PushStyleColor(ImGuiCol_Border,v(f.invalid?palette().error:palette().base300));
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,1.f);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{12.f*scale(),std::max(6.f,(control_height(f.size)-ImGui::GetFontSize())*.5f)});
-        ImGui::SetNextItemWidth(-FLT_MIN);
-    }
-    ~EditScope(){
-        scroll::set_drag_control_active(ImGui::IsItemActive());
-        ImGui::PopStyleVar(2);ImGui::PopStyleColor();ImGui::EndDisabled();
-        if(field.help)Validation(field.help,!field.invalid);
-        ImGui::PopID();
-    }
+struct EditScope:detail::FieldScope {
+    using detail::FieldScope::FieldScope;
+    ~EditScope(){scroll::set_drag_control_active(ImGui::IsItemActive());}
 };
+
 }
 int page_count(int total,int size){ return total>0&&size>0?1+(total-1)/size:0; }
 bool Navigation(const char* id,std::span<const NavItem> items,int* selected,bool vertical,Size size){
@@ -80,6 +68,7 @@ bool Collapse(const char* label,bool* open,bool disabled){
     ImGui::BeginDisabled(disabled);
     ImGui::SetNextItemOpen(*open,ImGuiCond_Always);
     *open=ImGui::CollapsingHeader(label);
+    detail::capture_control();
     ImGui::EndDisabled();return *open;
 }
 bool Accordion(const char* label,int index,int* openIndex,bool disabled){
@@ -97,7 +86,8 @@ void EndDropdown(){ImGui::EndPopup();}
 bool BeginContextMenu(const char* id){return ImGui::BeginPopupContextItem(id);}
 void EndContextMenu(){ImGui::EndPopup();}
 bool MenuItem(const char* label,const char* shortcut,bool selected,bool enabled){
-    return ImGui::MenuItem(label,shortcut,selected,enabled);
+    const bool clicked=ImGui::MenuItem(label,shortcut,selected,enabled);
+    detail::capture_control();return clicked;
 }
 void BeginFieldset(const char* id,const char* legend,bool disabled){
     ImGui::PushID(id);ImGui::BeginGroup();ImGui::BeginDisabled(disabled);
@@ -106,12 +96,16 @@ void BeginFieldset(const char* id,const char* legend,bool disabled){
 void EndFieldset(){ImGui::EndDisabled();ImGui::EndGroup();ImGui::PopID();}
 void Label(const char* label,bool required){
     const char* shown=text(label);
-    ImGui::TextUnformatted(shown,std::strstr(shown,"##"));
+    ImGui::PushTextWrapPos();ImGui::TextUnformatted(shown,std::strstr(shown,"##"));ImGui::PopTextWrapPos();
     if(required){ImGui::SameLine();ImGui::TextColored(v(palette().error),"*");}
 }
 void Validation(const char* message,bool valid){
     ImGui::PushStyleColor(ImGuiCol_Text,v(valid?blend(palette().baseContent,palette().base100,.4f):palette().error));
     ImGui::TextWrapped("%s",text(message));ImGui::PopStyleColor();
+}
+void Validation(const char* message,ValidationState state){
+    Field f;f.validation=state;const Color color=state==ValidationState::None?blend(palette().baseContent,palette().base100,.4f):field_visual(f).border;
+    ImGui::PushStyleColor(ImGuiCol_Text,v(color));ImGui::TextWrapped("%s",text(message));ImGui::PopStyleColor();
 }
 void Divider(const char* label){ImGui::SeparatorText(text(label));}
 void Kbd(const char* shortcut){
@@ -207,7 +201,8 @@ bool TreeNode(const char* id,const char* label,bool selected,bool leaf){
     auto flags=ImGuiTreeNodeFlags_OpenOnArrow|ImGuiTreeNodeFlags_OpenOnDoubleClick|ImGuiTreeNodeFlags_SpanAvailWidth;
     if(selected)flags|=ImGuiTreeNodeFlags_Selected;
     if(leaf)flags|=ImGuiTreeNodeFlags_Leaf;
-    return ImGui::TreeNodeEx(id,flags,"%s",text(label));
+    const bool expanded=ImGui::TreeNodeEx(id,flags,"%s",text(label));
+    detail::capture_control();return expanded;
 }
 void EndTreeNode(){ImGui::TreePop();}
 bool BeginSplit(const char* id,float* fraction,ImVec2 size,bool vertical,float minPane){
@@ -245,7 +240,7 @@ bool NextSplit(){
     if(!vertical)ImGui::SameLine(0,0);
     const bool pressed=ImGui::InvisibleButton("##grip",vertical?ImVec2(x,bar):ImVec2(bar,y),ImGuiButtonFlags_EnableNav);
     (void)pressed;
-    if(ImGui::IsItemActive()&&ratio){
+    if(!(GImGui->CurrentItemFlags&ImGuiItemFlags_Disabled)&&ImGui::IsItemActive()&&ratio){
         const float extent=std::max(2.f,(vertical?y:x)-bar);
         const auto delta=ImGui::GetIO().MouseDelta;
         *ratio=std::clamp(*ratio+(vertical?delta.y:delta.x)/extent,lower,1.f-lower);
@@ -256,11 +251,12 @@ bool NextSplit(){
         ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),ink(palette().primary));
     }
     // Arrow keys resize a focused grip, at the same clamp as pointer/touch input.
-    if(ratio&&ImGui::IsItemFocused()){
+    if(!(GImGui->CurrentItemFlags&ImGuiItemFlags_Disabled)&&ratio&&ImGui::IsItemFocused()){
         const auto prev=vertical?ImGuiKey_UpArrow:ImGuiKey_LeftArrow,next=vertical?ImGuiKey_DownArrow:ImGuiKey_RightArrow;
         if(ImGui::IsKeyPressed(prev))*ratio=std::clamp(*ratio-.02f,lower,1.f-lower);
         if(ImGui::IsKeyPressed(next))*ratio=std::clamp(*ratio+.02f,lower,1.f-lower);
     }
+    detail::capture_control();
     if(!vertical)ImGui::SameLine(0,0);
     return ImGui::BeginChild("##second",vertical?ImVec2(x,std::max(1.f,y-first-bar)):ImVec2(std::max(1.f,x-first-bar),y),ImGuiChildFlags_Borders);
 }
@@ -300,11 +296,13 @@ bool Range(const char* label,float* low,float* high,float min,float max,Field fi
 }
 bool FileInput(const char* id,const char* name,FilePicker picker,Field field){
     ImGui::PushID(id);Label(id,field.required);
-    Options o;o.size=field.size;o.variant=Variant::Outline;o.state.disabled=field.disabled||field.readOnly||!picker.request;
-    const bool request=Button("Choose file",o);
+    Options o;o.size=field.size;o.variant=Variant::Outline;o.state.disabled=field.disabled||!picker.request;
+    o.state.readOnly=field.readOnly;o.state.loading=field.loading;o.state.invalid=field.invalid||field.validation==ValidationState::Error;
+    const bool request=Button("Datei auswählen",o);
+    const auto control=GImGui->LastItemData;
     if(name&&*name)ImGui::TextWrapped("%s",name);
     if(field.help)Validation(field.help,!field.invalid);
-    ImGui::PopID();
+    GImGui->LastItemData=control;ImGui::PopID();
     if(request)picker.request(picker.user);
     return request;
 }

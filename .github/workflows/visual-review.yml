@@ -32,9 +32,14 @@ jobs:
         run: node tests/visual_review.mjs
         env:
           DEMO_URL: http://127.0.0.1:8765/index.html
+      - name: Render every supported component state and test real interactions
+        run: node tests/state_review.mjs
+        env:
+          DEMO_URL: http://127.0.0.1:8765/index.html
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: visual-review-screenshots
+          retention-days: 7
           path: visual-review/
           if-no-files-found: warn

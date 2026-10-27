@@ -52,7 +52,7 @@ int main(){
     assert(editable==2&&observed==editable);end();ui::SetInputObserver(nullptr);
     bool toggled=false;
     begin();const auto origin=ImGui::GetCursorScreenPos();ui::Switch("switch",&toggled);const auto switchPos=center();end();
-    // Public switch's last item is its label, so use a point in the switch itself.
+    // Use the leading switch track; the complete label is also actionable.
     (void)switchPos;const ImVec2 target{origin.x+24,origin.y+19};
     io.AddMousePosEvent(target.x,target.y);
     begin();ui::Switch("switch",&toggled);end();

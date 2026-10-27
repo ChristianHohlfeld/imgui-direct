@@ -26,6 +26,7 @@ void BeginFieldset(const char* id, const char* legend, bool disabled=false);
 void EndFieldset();
 void Label(const char* text, bool required=false);
 void Validation(const char* message, bool valid);
+void Validation(const char* message, ValidationState state);
 void Divider(const char* label);
 void Kbd(const char* shortcut);
 void StatusDot(Status status=Status::Info, const char* label=nullptr);
