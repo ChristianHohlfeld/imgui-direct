@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "ui/components.hpp"
+#include "ui/extended.hpp"
 #include "ui/theme.hpp"
 #include "ui/scroll.hpp"
 #include "imgui.h"
@@ -8,8 +9,11 @@
 #include <cstdio>
 
 #ifdef __EMSCRIPTEN__
-extern "C" void browser_input_rect(float,float,float,float);
+extern "C" void browser_input_frame();
+extern "C" void browser_input_region(float,float,float,float,int);
 extern "C" void browser_qa_state(int page,int clicks);
+extern "C" void browser_qa_item(int id,float x,float y,float w,float h);
+extern "C" void browser_qa_field(int id,const char* value);
 #endif
 
 namespace {
@@ -23,6 +27,28 @@ struct Demo {
 } d;
 float safeTop=0,safeRight=0,safeBottom=0,safeLeft=0,keyboardHeight=0;
 bool focusInput=false;
+ui::ToastQueue notifications;
+void mark([[maybe_unused]] int id){
+#ifdef __EMSCRIPTEN__
+    const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+    browser_qa_item(id,a.x,a.y,b.x-a.x,b.y-a.y);
+#endif
+}
+bool gallery_navigation(){
+    bool changed=false;
+    static const char* names[]={"Buttons","Eingabe","Design","Liste","Menüs","Daten","Editor","Layout"};
+    const float gap=ImGui::GetStyle().ItemSpacing.x;
+    const float per=std::max(1.f,(ImGui::GetContentRegionAvail().x-gap*3)/4);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{5.f*ui::scale(),6.f*ui::scale()});
+    for(int i=0;i<8;++i){
+        if(i%4)ImGui::SameLine();
+        ImGui::PushID(i);ui::Options opt;opt.size=ui::Size::SM;opt.variant=ui::Variant::Ghost;opt.state.selected=d.page==i;
+        if(ui::Button(names[i],opt,{per,0})){changed=d.page!=i;d.page=i;}
+        mark(i);ImGui::PopID();
+    }
+    ImGui::PopStyleVar();return changed;
+}
+
 void space(float n=8.f){ImGui::Dummy({0,n*ui::scale()});}
 void introduction(const char* title,const char* description){
     ui::Heading(title);ui::Muted(description);space(8);
@@ -34,6 +60,7 @@ void buttons(bool narrow){
         const float half=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
         const ImVec2 size=narrow?ImVec2(half,0.f):ImVec2(0.f,0.f);
         if(ui::Button("Primär",opt,size))++d.clicks;
+        mark(100);
         ImGui::SameLine();
         opt.variant=ui::Variant::Secondary;
         if(ui::Button("Sekundär",opt,size))++d.clicks;
@@ -72,11 +99,10 @@ void fields(bool narrow){
         required.help=d.invalid?"Bitte einen Namen eingeben.":nullptr;
         if(focusInput){ImGui::SetKeyboardFocusHere();focusInput=false;}
         ui::Input("Name",d.name,sizeof(d.name),"Vollständiger Name",required);
-#ifdef __EMSCRIPTEN__
-        {ImVec2 a,b;ui::LastInputBounds(a,b);
-         browser_input_rect(a.x,a.y,b.x-a.x,b.y-a.y);}
-#endif
         ui::Input("E-Mail",d.email,sizeof(d.email),"name@beispiel.de");
+#ifdef __EMSCRIPTEN__
+        browser_qa_field(0,d.name);browser_qa_field(1,d.email);
+#endif
         static const char* options[]={"Privat","Team","Unternehmen"};
         ui::Select("Bereich",options,3,&d.choice);
         space();
@@ -147,6 +173,9 @@ void virtual_list(){
         space(3);
         const float listHeight=std::max(220.f,ImGui::GetContentRegionAvail().y-22.f);
         ImGui::BeginChild("##virtual-list",{0,listHeight},ImGuiChildFlags_Borders);
+#ifdef __EMSCRIPTEN__
+        {const auto p=ImGui::GetWindowPos(),s=ImGui::GetWindowSize();browser_qa_item(102,p.x,p.y,s.x,s.y);}
+#endif
         constexpr int count=100000;
         const float row=ui::control_height(ui::Size::MD)+4.f;
         ImGuiListClipper clipper;
@@ -170,6 +199,86 @@ void virtual_list(){
     }
     ui::EndCard();
 }
+void navigation_demo(){
+    introduction("Navigation","Menüs, Pfade und Abläufe. Zustand bleibt bei der Anwendung.");
+    static int selected=0,crumb=-1,page=0,expanded=0;
+    const char* path[]={"Projekt","Szenen","Innenhof"};
+    ui::Breadcrumbs("breadcrumbs",path,&crumb);
+    if(crumb>=0){ImGui::Text("Gewählter Pfad: %s",path[crumb]);}
+    ui::Divider("Menü");
+    const ui::NavItem items[]={{"Szene"},{"Assets"},{"Einstellungen"},{"Gesperrt",true}};
+    ui::Navigation("menu",items,&selected,true);
+    if(ui::BeginDropdown("Aktionen")){
+        if(ui::MenuItem("Speichern","Ctrl+S"))notifications.push("Projekt gespeichert",ui::Status::Success,ImGui::GetTime());
+        ui::MenuItem("Exportieren",nullptr,false,false);ui::EndDropdown();
+    }
+    ui::Tooltip("Die Export-Aktion ist in diesem Beispiel deaktiviert.");
+    ui::Divider("Seiten");ui::Pagination("pagination",127,20,&page);
+    ui::Divider("Aufklappbare Bereiche");
+    if(ui::Accordion("Transform",0,&expanded))ui::Muted("Position, Rotation und Skalierung.");
+    if(ui::Accordion("Darstellung",1,&expanded))ui::Muted("Material, Sichtbarkeit und Schatten.");
+    ui::Divider("Schritte");const char* steps[]={"Auswählen","Prüfen","Übernehmen"};ui::Steps("steps",steps,selected%3);
+    ui::Kbd("Ctrl + S");
+}
+void data_demo(){
+    introduction("Daten","Tabellen, Status und Hierarchien für echte Werkzeuge.");
+    ui::Stat("Szenenobjekte","1.024","Nur sichtbare Listenzeilen werden aufgebaut.");
+    ui::StatusDot(ui::Status::Success,"Szene geladen");
+    ui::Avatar("CH");ImGui::SameLine();ui::Badge("Bearbeitung",ui::Status::Info);
+    const ui::TableColumn columns[]={{"Objekt"},{"Typ"},{"Status"}};ui::TableOptions opts;opts.height=210;
+    if(ui::BeginTable("objects",columns,opts)){
+        for(int i=0;i<6;++i){ImGui::TableNextRow();ImGui::TableNextColumn();ImGui::Text("Objekt %d",i+1);
+            ImGui::TableNextColumn();ImGui::TextUnformatted(i%2?"Licht":"Mesh");
+            ImGui::TableNextColumn();ui::StatusDot(ui::Status::Success,"Bereit");}
+        ui::EndTable();
+    }
+    if(ui::TreeNode("scene","Innenhof")){
+        if(ui::TreeNode("camera","Kamera",false,true))ui::EndTreeNode();
+        if(ui::TreeNode("objects","Objekte")){
+            if(ui::TreeNode("building","Gebäude",true,true))ui::EndTreeNode();
+            ui::EndTreeNode();
+        }ui::EndTreeNode();
+    }
+    ui::TimelineItem("Projekt geöffnet","Die Szene ist bereit.",ui::Status::Success);
+    ui::TimelineItem("Material geändert","Noch nicht gespeichert.",ui::Status::Warning);
+    ui::Divider("Ladezustände");ui::Loading("loading");ImGui::SameLine();ui::RadialProgress("radial",.72f);
+    ui::Skeleton("placeholder",{0,22});
+    if(ui::Button("Benachrichtigung anzeigen"))notifications.push("Änderung übernommen",ui::Status::Success,ImGui::GetTime());
+    mark(101);
+}
+void editor_demo(){
+    introduction("Editor-Eingaben","C++-Daten direkt bearbeiten, ohne UI-seitige Datenkopie.");
+    static float position[3]={0,1,0},rotation[3]={0,0,0},color[4]={.2f,.5f,.9f,1},mass=10,low=2,high=8;
+    static int layers=1;static bool locked=false;static char asset[96]="Innenhof";
+    ui::Switch("Schreibgeschützt",&locked);
+    ui::BeginFieldset("transform","Transform",locked);
+    ui::Input("Name",asset,sizeof(asset));
+    ui::Vector3("Position",position);ui::Vector3("Rotation",rotation);
+    ui::Number("Masse",&mass,.1f,0,10000);ui::Integer("Ebenen",&layers);
+    ui::ColorEdit("Materialfarbe",color);ui::Range("Entfernung",&low,&high,0,100);
+    ui::EndFieldset();
+    ui::Field invalid;invalid.invalid=true;invalid.help="Der Name darf nicht leer sein.";
+    static char empty[32]="";ui::Input("Validierungsbeispiel",empty,sizeof(empty),"Pflichtfeld",invalid);
+    ui::Field help;help.help="Die Anwendung stellt die Dateiauswahl bereit.";
+    ui::FileInput("Datei","Kein Dateidialog in der Demo",{},help);
+}
+void layout_demo(){
+    introduction("Layout","Verstellbare Bereiche und zusammengesetzte Oberflächen.");
+    static float ratio=.35f;static bool drawer=true;
+    ui::Switch("Seitenbereich anzeigen",&drawer);
+    if(drawer){
+        const bool visible=ui::BeginSplit("workspace",&ratio,{0,300},ImGui::GetContentRegionAvail().x<520);
+        if(visible){ui::Heading("Szene");if(ui::TreeNode("root","Innenhof")){
+            if(ui::TreeNode("mesh","Gebäude",true,true))ui::EndTreeNode();
+            ui::EndTreeNode();}}
+        if(ui::NextSplit()){ui::Heading("Eigenschaften");ui::Muted("Der Trenner ist mit Maus, Touch und Pfeiltasten bedienbar.");
+            ui::Progress("Laden",.85f);}
+        ui::EndSplit();
+    }else ui::Alert("Mehr Platz","Der Seitenbereich ist ausgeblendet.");
+    space();ui::Divider("Zusammengefasste Aktionen");
+    if(ui::Button("Speichern"))notifications.push("Gespeichert",ui::Status::Success,ImGui::GetTime());
+    ImGui::SameLine();if(ui::Button("Zurücksetzen",ui::Variant::Outline))ratio=.35f;
+}
 void theme(bool narrow){
     introduction("Erscheinungsbild","Eine gemeinsame Palette für jedes Element.");
     if(ui::BeginCard("##theme")){
@@ -190,7 +299,14 @@ void theme(bool narrow){
     ui::EndCard();
 }
 }
-void app::setup(){ui::initialize();ui::set_mode(ui::Mode::Light);}
+void app::setup(){
+    ui::initialize();ui::set_mode(ui::Mode::Light);
+#ifdef __EMSCRIPTEN__
+    ui::SetInputObserver([](ImVec2 a,ImVec2 b,bool active,void*){
+        browser_input_region(a.x,a.y,b.x-a.x,b.y-a.y,active?1:0);
+    });
+#endif
+}
 void app::set_touch(bool value){
     if(value)ImGui::GetIO().ConfigFlags|=ImGuiConfigFlags_IsTouchScreen;
     else ImGui::GetIO().ConfigFlags&=~ImGuiConfigFlags_IsTouchScreen;
@@ -198,7 +314,10 @@ void app::set_touch(bool value){
 }
 void app::safe_area(float a,float b,float c,float e){safeTop=a;safeRight=b;safeBottom=c;safeLeft=e;}
 void app::keyboard_height(float h){keyboardHeight=std::max(0.f,h);}
-void app::request_text_focus(){focusInput=true;d.page=1;}
+void app::request_text_focus(){
+    // The canvas touch selects the C++ field. Native IME focus must not
+    // steal that selection or switch the gallery page.
+}
 void app::zoom(float ratio){ui::zoom(ratio);}
 void app::draw(){
     ui::begin_frame();
@@ -219,9 +338,13 @@ void app::draw(){
     ui::Title("Komponenten");
     ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
     space(8);
-    const char* tabs[]={"Buttons","Formulare","Design","Liste"};
-    ui::Tabs("##gallery-nav",tabs,4,&d.page);
+    const bool pageChanged=gallery_navigation();
     space(9);
+#ifdef __EMSCRIPTEN__
+    browser_input_frame();
+#endif
+    if(pageChanged)ImGui::SetNextWindowScroll({0,0});
+    ImGui::BeginChild("##gallery-content",{0,0});
     if(d.page==0){
         introduction("Grundelemente","Alles, was eine klare Oberfläche braucht.");
         const bool columns=!narrow&&ImGui::GetContentRegionAvail().x>720.f;
@@ -241,10 +364,11 @@ void app::draw(){
         choices();
         if(columns)ImGui::Columns(1);
     }else if(d.page==2)theme(narrow);
-    else virtual_list();
-#ifdef __EMSCRIPTEN__
-    if(d.page!=1)browser_input_rect(0,0,0,0);
-#endif
+    else if(d.page==3)virtual_list();
+    else if(d.page==4)navigation_demo();
+    else if(d.page==5)data_demo();
+    else if(d.page==6)editor_demo();
+    else layout_demo();
     if(d.modal){ui::OpenModal("Bestätigung");d.modal=false;}
     if(ui::BeginModal("Bestätigung")){
         ui::Heading("Alles erledigt");
@@ -255,10 +379,12 @@ void app::draw(){
         ui::EndModal();
     }
     ui::scroll::apply();
+    ImGui::EndChild();
     ui::scroll::end_frame();
 #ifdef __EMSCRIPTEN__
     // Test instrumentation only, not a second UI or user-visible controls.
     browser_qa_state(d.page,d.clicks);
 #endif
     ImGui::End();
+    ui::Toasts("##gallery-toasts",notifications,ImGui::GetTime());
 }

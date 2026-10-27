@@ -11,6 +11,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  embedded-library:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build core without platform SDK or downloaded font
+        run: |
+          cmake -S . -B build -DUI_BUILD_DEMO=OFF -DUI_EMBED_FONT=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel 4
+          ctest --test-dir build --output-on-failure
+      - name: Embed using host-owned ImGui and fonts
+        run: |
+          cmake -S examples/embedded -B build-consumer -DIMGUI_SOURCE_DIR="$PWD/build/_deps/imgui-src"
+          cmake --build build-consumer --parallel 4
+          ./build-consumer/consumer
   windows:
     runs-on: windows-latest
     steps:
@@ -33,7 +47,7 @@ jobs:
           path: build/Release/imgui_direct.exe
           if-no-files-found: error
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y libx11-dev libgl-dev ninja-build
@@ -71,7 +85,7 @@ jobs:
           path: build-ios/Release-iphonesimulator/imgui_direct.app
           if-no-files-found: error
   android-arm64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: cmake -S . -B build-android -G Ninja -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=26 -DCMAKE_BUILD_TYPE=Release

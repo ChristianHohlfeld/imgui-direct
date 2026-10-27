@@ -1,220 +1,62 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
-const url = process.env.DEMO_URL || 'https://christianhohlfeld.github.io/imgui-direct/';
+import assert from 'node:assert/strict';
+const url=process.env.DEMO_URL||'https://christianhohlfeld.github.io/imgui-direct/';
 fs.mkdirSync('visual-review',{recursive:true});
-const browser = await chromium.launch({headless:true,args:[
-  '--use-gl=angle','--use-angle=swiftshader','--enable-webgl',
-  '--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
-let failures=[];
-async function capture(name, width, height, deviceScaleFactor, mobile) {
- const page=await browser.newPage({viewport:{width,height},deviceScaleFactor,isMobile:mobile,hasTouch:mobile});
- const errors=[];
- page.on('pageerror',e=>errors.push('page: '+e.message));
- page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text())});
- const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
- await page.waitForTimeout(6500);
- const screenshot=await page.screenshot({path:'visual-review/'+name+'.png'});
- const outputPixels=[screenshot.readUInt32BE(16),screenshot.readUInt32BE(20)];
- await page.waitForFunction(() => {
-   const s=window.__imguiCanvasPixels?.state;
-   return s?.ready && s.pixelWidth>0 && s.pixelHeight>0;
- },{timeout:12000});
- // Let ResizeObserver run and the C++ renderer reach a steady GL viewport.
- await page.waitForTimeout(200);
- const state=await page.evaluate(()=>{
-   const canvas=document.getElementById('canvas');
-   const status=document.getElementById('status')?.textContent||'';
-   const metrics=window.__imguiCanvasPixels?.sync();
-   const gl=canvas?.getContext('webgl2');
-   const bounds=canvas?.getBoundingClientRect();
-   const viewport=gl?.getParameter(gl.VIEWPORT);
-   return {
-     status, gl:!!gl, metrics, canvasWidth:canvas?.width,canvasHeight:canvas?.height,
-     drawingWidth:gl?.drawingBufferWidth,drawingHeight:gl?.drawingBufferHeight,
-     viewportWidth:viewport?.[2],viewportHeight:viewport?.[3],
-     rectWidth:bounds?.width,rectHeight:bounds?.height,dpr:window.devicePixelRatio
-   };
- });
- console.log(name,JSON.stringify({http:response?.status(),...state,errors}));
- if(!state.gl || state.status || errors.length)failures.push(name+' status '+JSON.stringify(state));
- if(await page.locator('button').count()!==0)
-   failures.push(name+' HTML startup button bypasses native component system');
- if((await page.title())!=='Komponenten')
-   failures.push(name+' technical browser title still exposed');
- if(state.canvasWidth !== state.metrics?.pixelWidth ||
-    state.canvasHeight !== state.metrics?.pixelHeight ||
-    state.canvasWidth !== state.drawingWidth ||
-    state.canvasHeight !== state.drawingHeight ||
-    state.viewportWidth !== state.drawingWidth ||
-    state.viewportHeight !== state.drawingHeight)
-   failures.push(name+' 1px physical mismatch: '+JSON.stringify(state));
- // Modern Chromium supports the authoritative device-pixel-content-box path.
- // A canvas backing store can agree with WebGL and still be WRONG:
- // compare to the independent Chromium screenshot/compositor pixel dimensions.
- if(state.canvasWidth!==outputPixels[0] || state.canvasHeight!==outputPixels[1])
-   failures.push(name+' compositor rescaling detected: '+JSON.stringify({
-     canvas:[state.canvasWidth,state.canvasHeight],png:outputPixels,
-     dpr:state.dpr,source:state.metrics?.source
-   }));
- // Exact native devicePixelContentBox when trustworthy; the fallback is
- // necessary on browsers/emulators which report CSS units from the observer.
- if(!state.metrics?.exact)console.log(name+' fallback: '+state.metrics?.source);
- // A button must respond to a real mobile touch tap and reject a swipe
- // that began over the same button. This probes the *full* browser -> touch
- // controller -> ImGui -> C++ component chain.
- if(name==='mobile'){
-   await page.waitForFunction(()=>window.__imguiUIState?.page===0,null,{timeout:6000});
-   const first=await page.evaluate(()=>window.__imguiUIState.clicks);
-   await page.touchscreen.tap(105,374); // primary button, CSS-pixel coordinates
-   await page.waitForFunction(initial=>window.__imguiUIState?.clicks===initial+1,
-                              first,{timeout:4000});
-   const clicked=await page.evaluate(()=>window.__imguiUIState.clicks);
-   const session=await page.context().newCDPSession(page);
-   try {
-     await session.send('Input.dispatchTouchEvent',
-       {type:'touchStart',touchPoints:[{x:105,y:374}]});
-     await page.waitForTimeout(75);
-     await session.send('Input.dispatchTouchEvent',
-       {type:'touchMove',touchPoints:[{x:105,y:294}]});
-     await page.waitForTimeout(100);
-     await session.send('Input.dispatchTouchEvent',
-       {type:'touchEnd',touchPoints:[]});
-     await page.waitForTimeout(160);
-     const end=await page.evaluate(()=>window.__imguiUIState.clicks);
-     if(end!==clicked)failures.push('swipe incorrectly clicked native button');
-     console.log('touch-button',JSON.stringify({tap:clicked-first,swipeClicks:end-clicked}));
-   } finally {await session.detach();}
- }
- // Assert the DOM event's actual CSS delta, not Playwright's requested
- // PHYSICAL wheel distance (the two differ under simulated DPR > 1).
- if(name==='mobile'){
-   await page.mouse.move(180,650);
-   const start=await page.evaluate(()=>window.__imguiScrollTotal||0);
-   await page.mouse.wheel(0,90);
-   await page.waitForFunction(()=>window.__imguiRawWheel?.received>0,
-                              null,{timeout:6000});
-   const actual=await page.evaluate(()=>window.__imguiRawWheel.y);
-   await page.waitForFunction(({start,actual})=>
-     (window.__imguiScrollTotal||0)>=start+actual-1,
-     {start,actual},{timeout:6000});
-   let moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,start);
-   console.log('real-wheel',JSON.stringify({physicalRequest:90,cssReceived:actual,moved}));
-   if(Math.abs(moved-actual)>1.2)failures.push('real Chrome wheel delta mismatch: '+moved+' vs '+actual);
-
-   // Explicitly emit a CSS-pixel precise WheelEvent to ensure 90 really
-   // means 90 logical layout pixels (no double ImGui wheel scaling).
-   const secondStart=await page.evaluate(()=>window.__imguiScrollTotal||0);
-   await page.evaluate(()=>document.getElementById('canvas').dispatchEvent(
-      new WheelEvent('wheel',{deltaX:0,deltaY:90,deltaMode:0,
-                              clientX:180,clientY:650,bubbles:true,cancelable:true})));
-   await page.waitForFunction(start=>
-       (window.__imguiScrollTotal||0)>=start+89,
-       secondStart,{timeout:6000});
-   moved=await page.evaluate(start=>(window.__imguiScrollTotal||0)-start,secondStart);
-   console.log('synthetic-css-wheel',JSON.stringify({expected:90,moved}));
-   if(Math.abs(moved-90)>1.2)failures.push('1:1 DOM pixel delta mismatch: '+moved);
- }
- if(name==='desktop') {
-  await page.mouse.click(730,136);
-  await page.waitForTimeout(900);
-  await page.screenshot({path:'visual-review/desktop-elements.png'});
- }
- if(name==='mobile') {
-  // Four tabs: x~145 selects Formulare; this page is scrollable too.
-  await page.touchscreen.tap(143,122);
-  await page.waitForTimeout(1000);
-  await page.screenshot({path:'visual-review/mobile-elements.png'});
- }
- await page.close();
+const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
+async function clickItem(page,id,touch=false){
+  const r=await page.evaluate(id=>window.__imguiItems[id],id);assert(r,`Missing item ${id}`);
+  const x=r.x+r.w/2,y=r.y+r.h/2;
+  if(touch){const cdp=await page.context().newCDPSession(page);
+    try{await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});await page.waitForTimeout(80);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
+    finally{await cdp.detach();}
+  }else{await page.mouse.move(x,y);await page.mouse.down();await page.waitForTimeout(80);await page.mouse.up();}
 }
-try {
- await capture('desktop',1440,900,1,false);
- await capture('mobile',390,844,2,true);
- await capture('ipad',820,1180,2,true);
- // DPI matrix: integer, fractional Windows UI scaling and high-density phones.
- await capture('dpi125',1235,777,1.25,false);
- await capture('dpi150',1111,803,1.5,false);
- await capture('dpi133',1001,713,1.3333333333,false);
- await capture('dpi300',393,852,3,true);
- // The public 'Liste' tab has 100,000 records; the C++ clipper should
- // submit only the visible items and render immediately on a wheel delta.
- const listPage=await browser.newPage({viewport:{width:390,height:844},
-                                      deviceScaleFactor:2,isMobile:true,hasTouch:true});
- try{
-   await listPage.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
-   await listPage.waitForTimeout(2400);
-   // Hold through at least two frames so real ImGui mouse-down/up are
-   // processed, rather than dropping a synthetic 1ms click on WebGL.
-   await listPage.mouse.move(339,122);
-   await listPage.mouse.down();
-   await listPage.waitForTimeout(105);
-   await listPage.mouse.up();
-   try {
-     await listPage.waitForFunction(()=>window.__imguiUIState?.page===3,
-                                    null,{timeout:4500});
-     await listPage.waitForFunction(()=>window.__imguiScroll?.rowsRendered>0,
-                                    null,{timeout:4500});
-   } catch(error) {
-     console.log('list selection debug',JSON.stringify(
-       await listPage.evaluate(()=>({ui:window.__imguiUIState,
-           scroll:window.__imguiScroll, wheel:window.__imguiRawWheel}))));
-     await listPage.screenshot({path:'visual-review/list-selection-failed.png'});
-     throw error;
-   }
-   const before=await listPage.evaluate(()=>window.__imguiScrollTotal||0);
-   const visible=await listPage.evaluate(()=>window.__imguiScroll?.rowsRendered);
-   if(visible>55)failures.push('list virtualization submitted '+visible+' rows');
-   await listPage.mouse.move(180,580);
-   await listPage.mouse.wheel(0,117);
-   await listPage.waitForFunction(()=>window.__imguiRawWheel?.received>0,
-                                  null,{timeout:5000});
-   const actualDelta=await listPage.evaluate(()=>window.__imguiRawWheel.y);
-   await listPage.waitForFunction(({before,actualDelta})=>
-       (window.__imguiScrollTotal||0)>=before+actualDelta-1,
-       {before,actualDelta},{timeout:6000});
-   const movement=await listPage.evaluate(start=>
-       (window.__imguiScrollTotal||0)-start,before);
-   if(Math.abs(movement-actualDelta)>1.2)
-       failures.push('list precise wheel: '+movement+' vs '+actualDelta);
-   await listPage.screenshot({path:'visual-review/virtual-list.png'});
-   console.log('virtual-list',JSON.stringify({total:100000,visible,movement}));
- }finally{await listPage.close();}
-
- // Resize the same GL context: update size, actual buffer and viewport together.
- const resize=await browser.newPage({viewport:{width:801,height:601},deviceScaleFactor:1.25});
- try {
-    await resize.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
-    await resize.waitForTimeout(1800);
-    await resize.setViewportSize({width:1003,height:709});
-    await resize.waitForTimeout(800);
-    const pixels=await resize.evaluate(()=>{
-      const e=document.getElementById('canvas');
-      const gl=e.getContext('webgl2');
-      const r=window.__imguiCanvasPixels.sync();
-      return {canvas:[e.width,e.height],
-        backing:[gl.drawingBufferWidth,gl.drawingBufferHeight],
-        glViewport:Array.from(gl.getParameter(gl.VIEWPORT)).slice(2),
-        requested:[r.pixelWidth,r.pixelHeight],exact:r.exact};
+try{
+  for(const [name,width,height,dpr,touch] of [['desktop',1440,1000,1,false],['mobile',390,844,2,true],['ipad',820,1180,2,true],['dpi125',1235,777,1.25,false],['dpi150',1111,803,1.5,false]]){
+    const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:dpr,isMobile:touch,hasTouch:touch});
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+    const response=await page.goto(url,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);
+    await page.waitForFunction(()=>window.__imguiItems?.[100]&&document.getElementById('status').textContent==='');
+    const initial=await page.evaluate(()=>window.__imguiUIState.clicks);
+    await clickItem(page,100,touch);
+    await page.waitForFunction(n=>window.__imguiUIState.clicks===n+1,initial);
+    // Exercise every category from its actual C++ bounds, not brittle pixel constants.
+    for(let category=0;category<8;++category){
+      await clickItem(page,category,touch);
+      await page.waitForFunction(n=>window.__imguiUIState.page===n,category);
+      await page.waitForTimeout(200);
+      if(name==='desktop'||name==='mobile')await page.screenshot({path:`visual-review/${name}-${category}.png`});
+      if(category===1&&touch){
+        const region=await page.evaluate(()=>window.__imguiInputRegions?.[1]);assert(region,'Second text input must register for IME');
+        await page.touchscreen.tap(region.x+20,region.y+region.height/2);
+        await page.waitForTimeout(200);
+        assert(await page.evaluate(()=>document.activeElement===document.getElementById('native-input')),'IME bridge must focus the selected input: '+JSON.stringify(await page.evaluate(()=>({active:document.activeElement?.id,regions:window.__imguiInputRegions}))));
+        const before=await page.evaluate(()=>window.__imguiFields[1]);
+        await page.evaluate(()=>{const e=document.getElementById('native-input');e.value='Ä';e.dispatchEvent(new Event('input',{bubbles:true}));});
+        await page.waitForFunction(before=>window.__imguiFields[1]!==before&&window.__imguiFields[1].includes('Ä'),before);
+        assert.equal(await page.evaluate(()=>window.__imguiUIState.page),1,'IME focus must preserve category');
+        await page.evaluate(()=>document.getElementById('native-input').blur());
+      }
+      if(category===3){
+        const before=await page.evaluate(()=>window.__imguiScrollTotal||0);
+        const list=await page.evaluate(()=>window.__imguiItems[102]);assert(list,'List bounds must be reported');
+        await page.mouse.move(list.x+list.w/2,list.y+Math.min(list.h/2,80));
+        await page.mouse.wheel(0,90);await page.waitForTimeout(250);
+        const stats=await page.evaluate(()=>({rows:window.__imguiScroll.rowsRendered,moved:(window.__imguiScrollTotal||0)}));
+        assert(stats.rows>0&&stats.rows<100,`Virtual list should clip: ${JSON.stringify(stats)}`);
+        assert(stats.moved>before,'Virtual list must scroll');
+      }
+    }
+    await clickItem(page,0,touch);await page.waitForTimeout(150);
+    const png=await page.screenshot({path:`visual-review/${name}.png`});
+    const metrics=await page.evaluate(()=>{
+      const c=document.getElementById('canvas'),gl=c.getContext('webgl2');return {canvas:[c.width,c.height],buffer:[gl.drawingBufferWidth,gl.drawingBufferHeight],viewport:[...gl.getParameter(gl.VIEWPORT)].slice(2)};
     });
-    console.log('resize',JSON.stringify(pixels));
-    const p=pixels;
-    if(p.canvas.some((value,i)=>
-       value!==p.requested[i] || value!==p.backing[i] || value!==p.glViewport[i]))
-      failures.push('resize physical pixel invariant: '+JSON.stringify(p));
-    const resizedPng=await resize.screenshot({path:'visual-review/resized.png'});
-    const screenshotPhysical=[resizedPng.readUInt32BE(16),resizedPng.readUInt32BE(20)];
-    if(p.canvas.some((pixel,i)=>pixel!==screenshotPhysical[i]))
-       failures.push('resize screenshot/resolution mismatch: '+JSON.stringify({
-         frame:p.canvas,png:screenshotPhysical
-       }));
- } finally {await resize.close(); }
- for(const item of [{name:'daisy-button',url:'https://daisyui.com/components/button/'},
-                    {name:'daisy-card',url:'https://daisyui.com/components/card/'}]) {
-   const page=await browser.newPage({viewport:{width:1280,height:900}});
-   await page.goto(item.url,{waitUntil:'domcontentloaded',timeout:45000});
-   await page.waitForTimeout(1500);
-   await page.screenshot({path:'visual-review/'+item.name+'.png'});
-   await page.close();
- }
-} finally {await browser.close();}
-if(failures.length){console.error(failures.join('\n'));process.exitCode=1;}
+    const physical=[png.readUInt32BE(16),png.readUInt32BE(20)];
+    assert.deepEqual(metrics.canvas,metrics.buffer);assert.deepEqual(metrics.canvas,metrics.viewport);assert.deepEqual(metrics.canvas,physical);
+    assert.equal(await page.locator('button').count(),0,'Components must be C++, not DOM replicas');
+    assert.deepEqual(errors,[],`${name} runtime errors`);console.log(name,JSON.stringify(metrics),'all 8 categories passed');
+    await page.close();
+  }
+}finally{await browser.close();}

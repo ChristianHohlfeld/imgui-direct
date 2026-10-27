@@ -16,14 +16,14 @@ double lastTouch=-10000.;
 bool isTouchDevice=false;
 touch::Controller gestures;
 // One browser-native input node is only an IME bridge, never an HTML UI.
-EM_JS(void, updateNativeTextRect,(float x,float y,float width,float height,int visible),{
-    const e=document.getElementById('native-input');
-    if(!e)return;
-    e.style.display=visible?'block':'none';
-    if(visible){
-        e.style.left=x+'px'; e.style.top=y+'px';
-        e.style.width=width+'px'; e.style.height=height+'px';
-    } else if(document.activeElement===e) e.blur();
+EM_JS(void, browser_input_frame,(), {
+    window.__imguiInputRegions=[];
+});
+EM_JS(void, browser_input_region,(float x,float y,float width,float height,int active), {
+    if(width>0&&height>0)window.__imguiInputRegions.push({x,y,width,height,active:!!active});
+});
+EM_JS(int, native_text_focused,(), {
+    return document.activeElement===document.getElementById('native-input')?1:0;
 });
 
 EM_JS(void, report_scroll, (float x,float y,int rows,float pending,float mx,float my,float maxY,float posY,int inside,int packets), {
@@ -44,6 +44,16 @@ EM_JS(void, browser_qa_state, (int page,int clicks), {
     window.__imguiUIState={page,clicks};
 });
 
+EM_JS(void, browser_qa_item, (int id,float x,float y,float w,float h), {
+    window.__imguiItems=window.__imguiItems||{};
+    window.__imguiItems[id]={x,y,w,h};
+});
+
+EM_JS(void, browser_qa_field, (int id,const char* value), {
+    window.__imguiFields=window.__imguiFields||{};
+    window.__imguiFields[id]=UTF8ToString(value);
+});
+
 ImGuiKey mapkey(const char* k) {
     if(std::strncmp(k,"Key",3)==0 && std::strlen(k)==4 && k[3]>='A'&&k[3]<='Z') return (ImGuiKey)(ImGuiKey_A+k[3]-'A');
     if(std::strncmp(k,"Digit",5)==0 && std::strlen(k)==6 && k[5]>='0'&&k[5]<='9') return (ImGuiKey)(ImGuiKey_0+k[5]-'0');
@@ -61,6 +71,9 @@ ImGuiKey mapkey(const char* k) {
     return ImGuiKey_None;
 }
 EM_BOOL keycb(int kind,const EmscriptenKeyboardEvent* e,void*) {
+    // Native textarea owns text/composition events while IME is focused.
+    // Feeding the same key through both paths would insert every character twice.
+    if(native_text_focused())return EM_FALSE;
     auto& io=ImGui::GetIO();
     bool down=kind==EMSCRIPTEN_EVENT_KEYDOWN;
     io.AddKeyEvent(ImGuiMod_Ctrl,e->ctrlKey);
@@ -202,6 +215,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE void mobile_backspace() {
     io.AddKeyEvent(ImGuiKey_Backspace,false);
 }
 extern "C" EMSCRIPTEN_KEEPALIVE void mobile_focus() {app::request_text_focus();}
-extern "C" void browser_input_rect(float x,float y,float width,float height) {
-    updateNativeTextRect(x,y,width,height,isTouchDevice?1:0);
+
+extern "C" EMSCRIPTEN_KEEPALIVE void mobile_control(int key) {
+    ImGuiKey mapped=ImGuiKey_None;
+    switch(key){case 13:mapped=ImGuiKey_Enter;break;case 9:mapped=ImGuiKey_Tab;break;
+    case 27:mapped=ImGuiKey_Escape;break;case 37:mapped=ImGuiKey_LeftArrow;break;case 39:mapped=ImGuiKey_RightArrow;break;
+    case 38:mapped=ImGuiKey_UpArrow;break;case 40:mapped=ImGuiKey_DownArrow;break;
+    case 36:mapped=ImGuiKey_Home;break;case 35:mapped=ImGuiKey_End;break;case 46:mapped=ImGuiKey_Delete;break;}
+    if(mapped!=ImGuiKey_None){auto& io=ImGui::GetIO();io.AddKeyEvent(mapped,true);io.AddKeyEvent(mapped,false);}
 }

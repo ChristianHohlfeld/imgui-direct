@@ -111,7 +111,7 @@ public:
         // Frame ticks and pointer events MUST have independent clocks:
         // mixing them silently biases gesture velocity and makes inertia
         // dependent on display refresh rate.
-        double dt=last_tick_at_<0 ? 0 : std::clamp(now-last_tick_at_,0.,.050);
+        double dt=last_tick_at_<0 ? std::clamp(now-last_at_,0.,.050) : std::clamp(now-last_tick_at_,0.,.050);
         last_tick_at_=now;
         if(mode_==Mode::Pointer&&holding_&&!long_pressed_&&
            now-down_at_>=.55&&std::hypot(first_.x-x0_,first_.y-y0_)<=10.f) {
