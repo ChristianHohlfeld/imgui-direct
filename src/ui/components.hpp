@@ -48,8 +48,12 @@ ButtonVisual button_visual(Options options);
 
 float control_height(Size size=Size::MD);
 Interaction last_interaction(bool disabled=false);
-// Bounds of the most recent Input(), used by mobile OS/browser IME adapters.
+// Bounds of the most recent Input()/Textarea(), used by mobile OS/browser IME adapters.
 void LastInputBounds(ImVec2& minimum,ImVec2& maximum);
+// Optional platform adapter. Called after each visible, editable text field.
+// Coordinates are logical screen units. Callback/user must outlive registration.
+using InputObserver=void(*)(ImVec2 minimum,ImVec2 maximum,bool active,void* user);
+void SetInputObserver(InputObserver observer,void* user=nullptr);
 void Title(const char* text);
 void Heading(const char* text);
 void Muted(const char* text);

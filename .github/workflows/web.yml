@@ -2,6 +2,7 @@ name: Build WebAssembly + Deploy Pages
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,9 +34,15 @@ jobs:
             build-web/index.js
             build-web/index.wasm
           if-no-files-found: error
+      - name: Stage only public application assets
+        run: |
+          mkdir -p site
+          cp build-web/index.html build-web/index.js build-web/index.wasm site/
+          touch site/.nojekyll
+          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > site/build.json
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: build-web
+          path: site
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: build

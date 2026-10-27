@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cfloat>
 #include <cstdio>
+#include <cstring>
 
 namespace ui {
 namespace {
@@ -75,7 +76,8 @@ void focus_ring(){
     }
 }
 void label(const char* text,Field f){
-    ImGui::TextUnformatted(text?text:"");
+    const char* shown=text?text:"";
+    ImGui::TextUnformatted(shown,std::strstr(shown,"##"));
     if(f.required){ImGui::SameLine(0,3);ImGui::TextColored(vec(palette().error),"*");}
 }
 void hint(Field f){
@@ -108,7 +110,7 @@ void field_end(Field f){
 ButtonVisual button_visual(Options options){return paint(options);}
 float control_height(Size size){
     const float desktop[]={28.f,33.f,38.f,44.f,50.f};
-    const float mobile[]={44.f,44.f,46.f,50.f,58.f};
+    const float mobile[]={44.f,44.f,48.f,52.f,60.f};
     int i=std::clamp((int)size,0,4);
     return (is_touch()?mobile[i]:desktop[i])*scale();
 }
@@ -225,6 +227,19 @@ bool Tabs(const char* id,const char* const* labels,int count,int* selected,Size 
     return changed;
 }
 ImVec2 lastInputMin{},lastInputMax{};
+namespace { InputObserver inputObserver=nullptr;void* inputObserverUser=nullptr;
+void input_bounds(Field f){
+    lastInputMin=ImGui::GetItemRectMin();lastInputMax=ImGui::GetItemRectMax();
+    if(inputObserver&&!f.disabled&&!f.readOnly&&!(GImGui->CurrentItemFlags&ImGuiItemFlags_Disabled)&&ImGui::IsItemVisible()){
+        const auto* window=ImGui::GetCurrentWindow();
+        const ImVec2 a{std::max(lastInputMin.x,window->ClipRect.Min.x),std::max(lastInputMin.y,window->ClipRect.Min.y)};
+        const ImVec2 b{std::min(lastInputMax.x,window->ClipRect.Max.x),std::min(lastInputMax.y,window->ClipRect.Max.y)};
+        inputObserver(a,b,ImGui::IsItemActive(),inputObserverUser);
+    }
+}
+}
+void SetInputObserver(InputObserver callback,void* user){inputObserver=callback;inputObserverUser=user;}
+
 void LastInputBounds(ImVec2& minimum,ImVec2& maximum){
     minimum=lastInputMin;maximum=lastInputMax;
 }
@@ -235,7 +250,7 @@ bool Input(const char* name,char* data,std::size_t capacity,const char* placehol
     ImGui::SetNextItemWidth(-FLT_MIN);
     bool changed=ImGui::InputTextWithHint("##value",placeholder?placeholder:"",data,capacity,
             field.readOnly?ImGuiInputTextFlags_ReadOnly:0);
-    lastInputMin=ImGui::GetItemRectMin();lastInputMax=ImGui::GetItemRectMax();
+    input_bounds(field);
     field_end(field);
     ImGui::PopID();
     return changed;
@@ -248,6 +263,7 @@ bool Textarea(const char* name,char* data,std::size_t capacity,Field field,int r
              (ImGui::GetTextLineHeightWithSpacing()*std::max(2,rows))+14.f);
     const bool changed=ImGui::InputTextMultiline("##multiline",data,capacity,{-FLT_MIN,h},
         field.readOnly?ImGuiInputTextFlags_ReadOnly:0);
+    input_bounds(field);
     field_end(field);ImGui::PopID();return changed;
 }
 bool Select(const char* name,const char* const* choices,int count,int* selection,Field field){
@@ -259,12 +275,17 @@ bool Select(const char* name,const char* const* choices,int count,int* selection
     const bool valid=*selection>=0&&*selection<count;
     bool changed=false;
     if(ImGui::BeginCombo("##select",valid?choices[*selection]:"Choose an option")) {
-        for(int i=0;i<count;i++){
-            bool chosen=i==*selection;
-            if(ImGui::Selectable(choices[i],chosen)&&!field.readOnly){
+        ImGuiListClipper clipper;
+        clipper.Begin(count);
+        if(valid)clipper.IncludeItemByIndex(*selection);
+        while(clipper.Step())for(int i=clipper.DisplayStart;i<clipper.DisplayEnd;++i){
+            ImGui::PushID(i);
+            const bool chosen=i==*selection;
+            if(ImGui::Selectable(choices[i]?choices[i]:"",chosen)&&!field.readOnly){
                 *selection=i;changed=true;
             }
             if(chosen)ImGui::SetItemDefaultFocus();
+            ImGui::PopID();
         }
         ImGui::EndCombo();
     }
@@ -301,7 +322,7 @@ bool Switch(const char* label,bool* value,Field field) {
     // InvisibleButton is a real ImGui nav/input item: it responds to keyboard,
     // mouse and synthesized native touch click. Hover is never required.
     if(field.disabled||field.readOnly)ImGui::BeginDisabled();
-    const bool clicked=ImGui::InvisibleButton("##switch",{w,h})&&
+    const bool clicked=ImGui::InvisibleButton("##switch",{w,h},ImGuiButtonFlags_EnableNav)&&
                        !field.disabled&&!field.readOnly;
     if(clicked)*value=!*value;
     const ImVec2 a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
@@ -321,7 +342,7 @@ bool Switch(const char* label,bool* value,Field field) {
     if(field.disabled||field.readOnly)ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(label);
+    ImGui::TextUnformatted(label,std::strstr(label,"##"));
     ImGui::PopID();
     hint(field);
     return clicked;

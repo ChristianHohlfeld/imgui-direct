@@ -1,5 +1,10 @@
 # imgui-direct
 
+**[Open the interactive component gallery](https://christianhohlfeld.github.io/imgui-direct/)** · [Coverage](docs/component-coverage.md) · [Embed in your engine](docs/embedding.md)
+
+Eight live C++/WASM categories: buttons, forms, themes, 100,000-row lists, navigation, data, editor inputs and layouts. The same component library runs natively; GitHub Pages deploys the gallery from `main`.
+
+
 **One C++20 application; Dear ImGui as the permanent UI core.** No SDL, GLFW, Sokol, React or additional GUI/runtime libraries. Direct Win32/WGL/OpenGL, X11/GLX/OpenGL, Apple Cocoa/UIKit/Metal, Android NDK/EGL/GLES3, browser Emscripten/WebGL2/WASM.
 
 Dear ImGui upstream version is pinned to commit `c1aaac65e896a45f81f47a4d68f9959e0f86c859` (v1.93.0). CMake FetchContent downloads the source during first configuration. A system SDK/compiler is still required for each target.
@@ -45,7 +50,9 @@ dependencies. One semantic `Palette` defines base, content, primary,
 secondary, neutral and feedback colors. Built-in *Slate Dark* and *Slate Light*
 can be switched live, or replaced with a custom C++ palette.
 
-The native component kit now includes buttons with focused/hover/pressed/
+The standalone `imgui_direct::ui` CMake target can be embedded without platform code or a second ImGui copy. The kit also includes menus, breadcrumbs, pagination, accordion, fieldsets, tables, tree views, virtual lists, split panes, numeric/vector/color/range controls, status, loading, skeletons and bounded toast notifications. See [the complete selection and exclusions](docs/component-coverage.md).
+
+The native component kit includes buttons with focused/hover/pressed/
 selected/disabled/loading states, tabs, cards, input, textarea, select,
 checkbox, radio, switch, slider, progress, badges, alerts and modals.
 It shares five sizes and native touch-first minimum targets.

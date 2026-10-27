@@ -11,6 +11,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  embedded-library:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build core without platform SDK or downloaded font
+        run: |
+          cmake -S . -B build -DUI_BUILD_DEMO=OFF -DUI_EMBED_FONT=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel 4
+          ctest --test-dir build --output-on-failure
+      - name: Embed using host-owned ImGui and fonts
+        run: |
+          cmake -S examples/embedded -B build-consumer -DIMGUI_SOURCE_DIR="$PWD/build/_deps/imgui-src"
+          cmake --build build-consumer --parallel 4
+          ./build-consumer/consumer
   windows:
     runs-on: windows-latest
     steps:

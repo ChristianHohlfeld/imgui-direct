@@ -1,5 +1,7 @@
 #include "ui/theme.hpp"
+#ifdef UI_EMBED_FONT
 #include "ui/font_data.hpp"
+#endif
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
@@ -99,6 +101,7 @@ void initialize(){
     // The default embedded Proggy fonts are programmer fonts and do not match
     // a normal product UI. Select Inter explicitly; simply adding the font is
     // insufficient because ImGui may keep its previously created font.
+    #ifdef UI_EMBED_FONT
     ImFontConfig config{};
     config.FontDataOwnedByAtlas=false;
     config.PixelSnapH=false;
@@ -107,6 +110,10 @@ void initialize(){
     io.FontDefault=io.Fonts->AddFontFromMemoryTTF(
         (void*)inter_font_data,inter_font_size,16.f,&config);
     IM_ASSERT(io.FontDefault != nullptr);
+    #else
+    // Embedders own font selection; do not replace an existing engine atlas.
+    if(io.Fonts->Fonts.empty())io.FontDefault=io.Fonts->AddFontDefault();
+    #endif
     currentMode=Mode::Dark;
     dark=true;
     active=slateDark;
