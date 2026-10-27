@@ -34,7 +34,8 @@ void mark([[maybe_unused]] int id){
     browser_qa_item(id,a.x,a.y,b.x-a.x,b.y-a.y);
 #endif
 }
-void gallery_navigation(){
+bool gallery_navigation(){
+    bool changed=false;
     static const char* names[]={"Buttons","Eingabe","Design","Liste","Menüs","Daten","Editor","Layout"};
     const float gap=ImGui::GetStyle().ItemSpacing.x;
     const float per=std::max(1.f,(ImGui::GetContentRegionAvail().x-gap*3)/4);
@@ -42,10 +43,10 @@ void gallery_navigation(){
     for(int i=0;i<8;++i){
         if(i%4)ImGui::SameLine();
         ImGui::PushID(i);ui::Options opt;opt.size=ui::Size::SM;opt.variant=ui::Variant::Ghost;opt.state.selected=d.page==i;
-        if(ui::Button(names[i],opt,{per,0})){d.page=i;ImGui::SetScrollY(0);}
+        if(ui::Button(names[i],opt,{per,0})){changed=d.page!=i;d.page=i;}
         mark(i);ImGui::PopID();
     }
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar();return changed;
 }
 
 void space(float n=8.f){ImGui::Dummy({0,n*ui::scale()});}
@@ -337,11 +338,12 @@ void app::draw(){
     ui::Title("Komponenten");
     ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
     space(8);
-    gallery_navigation();
+    const bool pageChanged=gallery_navigation();
     space(9);
 #ifdef __EMSCRIPTEN__
     browser_input_frame();
 #endif
+    if(pageChanged)ImGui::SetNextWindowScroll({0,0});
     ImGui::BeginChild("##gallery-content",{0,0});
     if(d.page==0){
         introduction("Grundelemente","Alles, was eine klare Oberfläche braucht.");

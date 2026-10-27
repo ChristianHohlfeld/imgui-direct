@@ -31,7 +31,7 @@ try{
         const region=await page.evaluate(()=>window.__imguiInputRegions?.[1]);assert(region,'Second text input must register for IME');
         await page.touchscreen.tap(region.x+20,region.y+region.height/2);
         await page.waitForTimeout(200);
-        assert(await page.evaluate(()=>document.activeElement===document.getElementById('native-input')),'IME bridge must focus the selected input');
+        assert(await page.evaluate(()=>document.activeElement===document.getElementById('native-input')),'IME bridge must focus the selected input: '+JSON.stringify(await page.evaluate(()=>({active:document.activeElement?.id,regions:window.__imguiInputRegions}))));
         const before=await page.evaluate(()=>window.__imguiFields[1]);
         await page.evaluate(()=>{const e=document.getElementById('native-input');e.value='Ä';e.dispatchEvent(new Event('input',{bubbles:true}));});
         await page.waitForFunction(before=>window.__imguiFields[1]!==before&&window.__imguiFields[1].includes('Ä'),before);

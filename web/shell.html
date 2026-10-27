@@ -21,6 +21,8 @@
       input.style.display='block';input.style.left=r.x+'px';input.style.top=r.y+'px';
       input.style.width=r.width+'px';input.style.height=r.height+'px';input.focus({preventScroll:true});
     }else input.blur();
+    // ImGui may process a quick touch over successive frames. Keep native
+    // focus until the next outside gesture instead of blurring during that gap.
   },{capture:true,passive:true});
   input.addEventListener('keydown',e=>{
     if(composing||e.isComposing)return;

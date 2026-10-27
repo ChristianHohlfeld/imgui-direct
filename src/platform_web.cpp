@@ -22,10 +22,6 @@ EM_JS(void, browser_input_frame,(), {
 EM_JS(void, browser_input_region,(float x,float y,float width,float height,int active), {
     if(width>0&&height>0)window.__imguiInputRegions.push({x,y,width,height,active:!!active});
 });
-EM_JS(void, browser_input_finish,(), {
-    const input=document.getElementById('native-input');
-    if(document.activeElement===input&&!window.__imguiInputRegions.some(r=>r.active))input.blur();
-});
 EM_JS(int, native_text_focused,(), {
     return document.activeElement===document.getElementById('native-input')?1:0;
 });
@@ -169,7 +165,7 @@ void frame() {
     previous=now;
     touch::dispatch(gestures.tick(now/1000.));
     ImGui_ImplOpenGL3_NewFrame();
-    ImGui::NewFrame(); app::draw(); browser_input_finish(); ImGui::Render();
+    ImGui::NewFrame(); app::draw(); ImGui::Render();
     // Observable in browser QA; no DOM UI and no per-event allocations.
     report_scroll(ui::scroll::state().appliedX, ui::scroll::state().appliedY,
                   ui::scroll::state().rowsDrawn, ui::scroll::state().dy,
