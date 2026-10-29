@@ -11,7 +11,6 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
-#include <numeric>
 #ifdef __EMSCRIPTEN__
 extern "C" void browser_qa_item(int,float,float,float,float);
 #endif
@@ -76,7 +75,6 @@ constexpr const char* descriptions[] = {
 static_assert(std::size(descriptions)==52);
 
 char search[128]="";
-int activeGroup=-1;
 int group_of(int i) {
     if(i==0||i==41||i==48||i==50)return 0;
     if((i>=1&&i<=13)||i==43||i==44||i==49)return 1;
@@ -84,7 +82,6 @@ int group_of(int i) {
     if(i>=24&&i<=29||i==45||i==46)return 3;
     return 4;
 }
-const char* group_name(int i){return groups[group_of(i)];}
 bool matches(const char* name,const char* term){
     if(!*term)return true;
     char buffer[192],needle[128];int j=0;
@@ -221,7 +218,7 @@ bool tile(int index){
         ImGui::TextUnformatted(meta.name);
         ImGui::PushStyleColor(ImGuiCol_TextDisabled,
             {pal.baseContent.r,pal.baseContent.g,pal.baseContent.b,.64f});
-        ImGui::TextUnformatted(descriptions[index]);
+        ImGui::TextWrapped("%s",descriptions[index]);
         ImGui::PopStyleColor();
         opened=ui::Link("Zustände ansehen");
         mark_catalog_item(900+index);
@@ -231,12 +228,6 @@ bool tile(int index){
     return opened;
 }
 int filter=0;
-int group_count(int group){
-    int count=0;
-    for(int i=0;i<review::count();++i)
-        if(group<0||group_of(i)==group)++count;
-    return count;
-}
 void filter_buttons(bool vertical,float width){
     const char* labels[]={"Alle","Aktionen","Eingaben","Navigation","Layout","Feedback"};
     const float s=ui::scale();
@@ -252,7 +243,7 @@ void filter_buttons(bool vertical,float width){
         b.variant=filter==i?ui::Variant::Soft:ui::Variant::Ghost;
         b.state.selected=filter==i;
         if(ui::Button(labels[i],b,{buttonWidth,0}))filter=i;
-        mark_catalog_item(940+i);
+        mark_catalog_item(1100+i);
         ImGui::PopID();
     }
     ImGui::PopStyleVar();

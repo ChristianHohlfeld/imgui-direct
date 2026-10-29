@@ -48,10 +48,10 @@ try{
       await page.waitForTimeout(250);
     }
     if(name==='desktop'){
-      await clickItem(page,945,false); // feedback category
+      await clickItem(page,1105,false); // feedback category
       await page.waitForTimeout(160);
       await page.screenshot({path:'visual-review/desktop-catalog-filtered.png'});
-      await clickItem(page,940,false); // all categories again
+      await clickItem(page,1100,false); // all categories again
     }
     // Saturated page boundary has visible elastic feedback but clamped scroll.
     if(name==='desktop'){
