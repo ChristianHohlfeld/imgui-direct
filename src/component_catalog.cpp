@@ -318,28 +318,29 @@ void draw_nav(){
 }
 void draw_mobile_picker(){
     const float s=ui::scale();
+    // Native touch-editable search is independent of the navigation drawer.
     ui::Input("##docs-search-mobile",search,sizeof(search),"Komponente suchen ...");
-    ImGui::Dummy({0,4.f*s});
-    ImGui::SetNextItemWidth(-1);
-    if(ImGui::BeginCombo("##component-picker",review::component(chosen).name)){
-        for(int group=0;group<groupCount;++group){
-            bool any=false;
-            for(int i=0;i<review::count();++i)
-                if(group_of(i)==group&&matches_index(i)){any=true;break;}
-            if(!any)continue;
-            ImGui::SeparatorText(groups[group]);
-            for(int i=0;i<review::count();++i){
-                if(group_of(i)!=group||!matches_index(i))continue;
-                if(ImGui::Selectable(review::component(i).name,chosen==i))
-                    switch_to(i);
-            }
-        }
-        ImGui::EndCombo();
-    }
+    ImGui::Dummy({0,5.f*s});
+    ui::Options menu;menu.variant=ui::Variant::Outline;menu.fullWidth=true;
+    char label[128];
+    std::snprintf(label,sizeof(label),"Komponenten  /  %s",review::component(chosen).name);
+    if(ui::Button(label,menu))ImGui::OpenPopup("##docs-mobile-drawer");
 #ifdef __EMSCRIPTEN__
     const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
     browser_qa_item(1300,a.x,a.y,b.x-a.x,b.y-a.y);
 #endif
+    const auto viewport=ImGui::GetMainViewport();
+    const float width=std::min(viewport->Size.x-16.f*s,380.f*s);
+    ImGui::SetNextWindowPos({viewport->Pos.x+8.f*s,viewport->Pos.y+8.f*s},ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({width,std::max(220.f*s,viewport->Size.y-16.f*s)},ImGuiCond_Appearing);
+    if(ImGui::BeginPopup("##docs-mobile-drawer",ImGuiWindowFlags_NoSavedSettings)){
+        // The sidebar is the exact same native component navigator on desktop
+        // and mobile. Popups dismiss on outside tap; selection closes it.
+        draw_nav();
+        ui::scroll::apply();
+        if(changedSelection)ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
 }
 void variant_sample(int i){
     const float s=ui::scale();

@@ -59,6 +59,22 @@ try{
       await page.waitForFunction(()=>window.__imguiGallery?.matching>0&&window.__imguiGallery.matching<52);
       await page.screenshot({path:'visual-review/mobile-catalog-search-ime.png'});
       await page.evaluate(()=>document.getElementById('native-input').blur());
+      // Clear the query so the first sidebar group is discoverable.
+      await page.evaluate(()=>{
+        const e=document.getElementById('native-input');
+        e.value='';
+        e.dispatchEvent(new Event('input',{bubbles:true}));
+      });
+      await page.waitForFunction(()=>window.__imguiGallery?.matching===52);
+      await clickItem(page,1300,true);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1220]);
+      await page.screenshot({path:'visual-review/mobile-docs-drawer.png'});
+      await clickItem(page,1220,true);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1420]);
+      await clickItem(page,1300,true);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1200]);
+      await clickItem(page,1200,true);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1400]);
     }
     if(name==='desktop'){
       // Independently scroll the right-hand examples. Left component list stays fixed.
