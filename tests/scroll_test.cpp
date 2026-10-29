@@ -19,6 +19,14 @@ int main(){
     assert(b.overscrollY==-56.f);
     for(int i=0;i<120;++i)b.step_spring(1.f/60.f);
     assert(std::abs(b.overscrollY)<.2f);
+    // Same elapsed time, different frame rates: no sticky elastic displacement
+    // when a WebGL screenshot or slow host produces occasional long frames.
+    Buffer manyFrames,oneFrame;
+    manyFrames.push_edge(-3000.f);oneFrame.push_edge(-3000.f);
+    for(int i=0;i<30;++i)manyFrames.step_spring(1.f/120.f);
+    oneFrame.step_spring(.25f);
+    assert(std::abs(manyFrames.overscrollY-oneFrame.overscrollY)<.01f);
+    assert(std::abs(manyFrames.springVelocityY-oneFrame.springVelocityY)<.01f);
     b.push_edge(120.f);assert(b.overscrollY>0.f);
     b.reduceMotion=true;b.step_spring(1.f/60.f);
     assert(b.overscrollY==0.f&&b.springVelocityY==0.f);

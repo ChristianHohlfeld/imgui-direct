@@ -124,7 +124,7 @@ try{
       await page.waitForTimeout(700);
       const settled=await page.evaluate(()=>window.__imguiScrollDebug.elasticY);
       assert(Math.abs(settled)<Math.abs(bounce)*.15,
-        'Elastic scroll must spring back after gesture, not stick at boundary');
+        `Elastic scroll must spring back after gesture (start=${bounce}, end=${settled})`);
     }
     await clickItem(page,0,touch);
     await page.waitForFunction(()=>window.__imguiItems?.[100]&&window.__imguiUIState.page===0);

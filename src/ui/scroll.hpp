@@ -34,11 +34,18 @@ struct Buffer {
     void step_spring(float dt){
         if(!std::isfinite(dt)||dt<=0.f)return;
         if(reduceMotion){overscrollY=springVelocityY=0.f;return;}
-        dt=std::clamp(dt,0.f,1.f/30.f);
-        // Stable critically damped return; independent from OS scroll momentum.
-        const float acceleration=-155.f*overscrollY-25.f*springVelocityY;
-        springVelocityY+=acceleration*dt;
-        overscrollY+=springVelocityY*dt;
+        // Exact critically damped oscillator. The previous explicit Euler step
+        // capped dt at 1/30 s, so a costly WebGL frame could consume only
+        // a fraction of elapsed time and leave the rubber band visibly stuck.
+        // Analytical integration is frame-rate independent (60/120 Hz or stalls).
+        dt=std::clamp(dt,0.f,.5f);
+        constexpr float omega=12.5f; // damping ratio 1; ~0.5 s natural return
+        const float decay=std::exp(-omega*dt);
+        const float c=springVelocityY+omega*overscrollY;
+        const float nextPosition=(overscrollY+c*dt)*decay;
+        const float nextVelocity=(springVelocityY-omega*c*dt)*decay;
+        overscrollY=nextPosition;
+        springVelocityY=nextVelocity;
         if(std::abs(overscrollY)<.12f&&std::abs(springVelocityY)<1.4f)
             overscrollY=springVelocityY=0.f;
     }
