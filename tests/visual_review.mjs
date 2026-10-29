@@ -58,14 +58,14 @@ try{
       });
       await page.waitForFunction(()=>window.__imguiGallery?.matching>0&&window.__imguiGallery.matching<52);
       await page.screenshot({path:'visual-review/mobile-catalog-search-ime.png'});
-      await page.evaluate(()=>document.getElementById('native-input').blur());
-      // Clear the query so the first sidebar group is discoverable.
+      // Clear while the IME bridge still owns the active native field.
       await page.evaluate(()=>{
         const e=document.getElementById('native-input');
         e.value='';
         e.dispatchEvent(new Event('input',{bubbles:true}));
       });
       await page.waitForFunction(()=>window.__imguiGallery?.matching===52);
+      await page.evaluate(()=>document.getElementById('native-input').blur());
       await clickItem(page,1300,true);
       await page.waitForFunction(()=>!!window.__imguiItems?.[1220]);
       await page.screenshot({path:'visual-review/mobile-docs-drawer.png'});
