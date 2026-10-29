@@ -123,7 +123,7 @@ try{
     await pointer(page,{...r,x:r.x+r.w-12,w:10},touch);await page.waitForFunction(()=>window.__imguiReview.changes>0);
   }
   // All button variants and five sizes on the same real rendering path.
-  for(let variant=0;variant<10;++variant){await configure(page,0,0,0);await page.evaluate(v=>Module.ccall('gallery_review_variant',null,['number'],[v]),variant);await page.waitForTimeout(35);
+  for(let variant=0;variant<11;++variant){await configure(page,0,0,0);await page.evaluate(v=>Module.ccall('gallery_review_variant',null,['number'],[v]),variant);await page.waitForTimeout(35);
     await page.screenshot({path:`${root}/${mode}-button-variant-${variant}.png`,scale:'css'});}
   for(let size=0;size<5;++size){await configure(page,4,0,0,size);await page.screenshot({path:`${root}/${mode}-checkbox-size-${size}.png`,scale:'css'});}
   assert.deepEqual(errors,[],`${mode} runtime errors`);

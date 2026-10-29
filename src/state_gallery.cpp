@@ -261,9 +261,9 @@ void draw(){
  const char* sizes[]={"XS","SM","MD","LG","XL"};int sizeIndex=static_cast<int>(size);
  ImGui::SetNextItemWidth(-1);if(ImGui::Combo("##size",&sizeIndex,sizes,5))size=static_cast<ui::Size>(sizeIndex);mark(204);
  if(current==0){
-   const char* variants[]={"Primary","Secondary","Neutral","Outline","Ghost","Error","Success","Warning","Info","Soft"};
+   const char* variants[]={"Primary","Secondary","Neutral","Outline","Ghost","Error","Success","Warning","Info","Soft","Accent"};
    int selected=static_cast<int>(variant);ImGui::SetNextItemWidth(-1);
-   if(ImGui::Combo("##variant",&selected,variants,10))variant=static_cast<ui::Variant>(selected);
+   if(ImGui::Combo("##variant",&selected,variants,11))variant=static_cast<ui::Variant>(selected);
  }
  [[maybe_unused]] const auto previewTop=ImGui::GetCursorScreenPos();[[maybe_unused]] const float previewWidth=ImGui::GetContentRegionAvail().x;
  ui::Divider(component(current).name);

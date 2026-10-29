@@ -6,7 +6,7 @@
 #include <cstddef>
 
 namespace ui {
-enum class Variant { Primary, Secondary, Neutral, Outline, Ghost, Error, Success, Warning, Info, Soft };
+enum class Variant { Primary, Secondary, Neutral, Outline, Ghost, Error, Success, Warning, Info, Soft, Accent };
 enum class Status { Info, Success, Warning, Error };
 enum class Size { XS, SM, MD, LG, XL };
 // Independent semantic tone and surface roles; match daisyUI's
