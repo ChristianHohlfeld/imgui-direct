@@ -27,10 +27,10 @@ EM_JS(int, native_text_focused,(), {
     return document.activeElement===document.getElementById('native-input')?1:0;
 });
 
-EM_JS(void, report_scroll, (float x,float y,int rows,float pending,float mx,float my,float maxY,float posY,int inside,int packets), {
+EM_JS(void, report_scroll, (float x,float y,int rows,float pending,float mx,float my,float maxY,float posY,int inside,int packets,float elastic), {
     window.__imguiScroll={appliedX:x, appliedY:y, rowsRendered:rows, time:performance.now()};
     window.__imguiScrollTotal=(window.__imguiScrollTotal||0)+y;
-    window.__imguiScrollDebug={pending,mx,my,maxY,posY,inside,packets};
+    window.__imguiScrollDebug={pending,mx,my,maxY,posY,inside,packets,elasticY:elastic};
 });
 EM_JS(void, diagnostic_wheel, (float x,float y,float mouseX,float mouseY,int mode), {
     window.__imguiRawWheel={x,y,mouseX,mouseY,mode,received:(window.__imguiRawWheel?.received||0)+1};
@@ -191,7 +191,7 @@ void frame() {
                   ui::scroll::state().lastPointerX,ui::scroll::state().lastPointerY,
                   ui::scroll::state().lastMaxY,ui::scroll::state().lastScrollY,
                   ui::scroll::state().lastInside?1:0,
-                  (int)ui::scroll::state().packets);
+                  (int)ui::scroll::state().packets,ui::scroll::state().overscrollY);
     const auto background=ui::palette().base100;
     glViewport(0,0,fw,fh);
     glClearColor(background.r,background.g,background.b,1);
@@ -211,6 +211,10 @@ int main() {
     app::setup();
     isTouchDevice=emscripten_run_script_int("('ontouchstart' in window) || navigator.maxTouchPoints>0");
     app::set_touch(isTouchDevice);
+    // Respect accessibility: reduced-motion users get precise scrolling,
+    // without any elastic displacement animation.
+    ui::scroll::set_reduce_motion(emscripten_run_script_int(
+        "window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0")!=0);
     if(isTouchDevice) ImGui::GetIO().ConfigFlags|=ImGuiConfigFlags_IsTouchScreen;
     if(!ImGui_ImplOpenGL3_Init("#version 300 es")) return 2;
     emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW,nullptr,true,keycb);

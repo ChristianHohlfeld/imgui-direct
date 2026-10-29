@@ -220,3 +220,23 @@ Reference implementation values were taken from daisyUI `button.css`,
 `badge.css`, `alert.css`, `card.css`, `tab.css`, `progress.css`,
 `rating.css`, `link.css` and `chat.css` under the upstream
 `packages/daisyui/src/components/` directory.
+
+The native button variants include daisyUI's `Accent` role in addition to the
+existing primary/secondary/neutral/status/outline/soft/ghost variants. Button
+size tokens now follow the original 24/32/40/48/56 px XS–XL progression
+on desktop; touch-first minimum heights remain independently enforced.
+
+## Elastic edge feedback (scroll bounce)
+
+Precise scroll pixels are never interpolated or discarded before nested windows
+and parents have consumed them. After saturation at the **outer** page boundary,
+pixel-wheel or touch gestures add a resisted visual displacement (max 56 logical
+px). The actual Dear ImGui scroll coordinate remains clamped and correct.
+The content vertices spring back with a critically damped frame-time step;
+background and clip rectangles remain fixed. Overscroll is not triggered
+between nested scroll panes while there is still useful parent scrolling.
+Non-pixel Windows/desktop wheel paths remain immediate. On the web,
+`prefers-reduced-motion: reduce` disables the effect entirely.
+No CSS transforms, DOM scrollable layer, or duplicated gesture engine.
+
+Chromium visual QA now sends a genuine out-of-bounds wheel gesture to the component catalogue, measures native elastic displacement, and asserts spring return.

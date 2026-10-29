@@ -43,7 +43,10 @@ try{
   const page=await browser.newPage({viewport:{width:touch?390:1100,height:1000},deviceScaleFactor:touch?2:1,isMobile:touch,hasTouch:touch});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
   await page.goto(url,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>window.__imguiReviewCatalog?.length===52&&window.__imguiReview);
+  await page.waitForFunction(()=>window.__imguiReviewCatalog?.length===52&&window.Module?.ccall);
+  // Default gallery is browse-first; the QA route explicitly selects the
+  // real interactive inspector instead of depending on the initial page.
+  await configure(page,0,0,0);
   const catalog=await page.evaluate(()=>window.__imguiReviewCatalog);manifest.catalog=catalog;
   for(const dark of [0,1])for(const c of catalog){
    for(let s=0;s<states.length;++s){
@@ -123,7 +126,7 @@ try{
     await pointer(page,{...r,x:r.x+r.w-12,w:10},touch);await page.waitForFunction(()=>window.__imguiReview.changes>0);
   }
   // All button variants and five sizes on the same real rendering path.
-  for(let variant=0;variant<10;++variant){await configure(page,0,0,0);await page.evaluate(v=>Module.ccall('gallery_review_variant',null,['number'],[v]),variant);await page.waitForTimeout(35);
+  for(let variant=0;variant<11;++variant){await configure(page,0,0,0);await page.evaluate(v=>Module.ccall('gallery_review_variant',null,['number'],[v]),variant);await page.waitForTimeout(35);
     await page.screenshot({path:`${root}/${mode}-button-variant-${variant}.png`,scale:'css'});}
   for(let size=0;size<5;++size){await configure(page,4,0,0,size);await page.screenshot({path:`${root}/${mode}-checkbox-size-${size}.png`,scale:'css'});}
   assert.deepEqual(errors,[],`${mode} runtime errors`);
