@@ -40,6 +40,7 @@ jobs:
           retention-days: 7
           path: |
             visual-review/*catalog*.png
+            visual-review/*docs*.png
             visual-review/*list-after-scroll.png
           if-no-files-found: warn
       - name: Render every supported component state and test real interactions
