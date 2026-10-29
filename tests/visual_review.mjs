@@ -24,6 +24,24 @@ try{
     await page.waitForTimeout(250);
     if(name==='desktop'||name==='mobile'||name==='ipad')
       await page.screenshot({path:`visual-review/${name}-catalog-light.png`});
+    const initialGallery=await page.evaluate(()=>window.__imguiGallery);
+    assert.equal(initialGallery.matching,52,'All 52 catalogue entries must be discoverable');
+    assert(initialGallery.drawn>0&&initialGallery.drawn<52,
+      'Gallery must virtualize invisible preview cards: '+JSON.stringify(initialGallery));
+    if(name==='desktop'){
+      await clickItem(page,1004);
+      await page.waitForFunction(()=>window.__imguiGallery?.filter===4&&window.__imguiGallery.matching>0);
+      await page.screenshot({path:'visual-review/desktop-catalog-filtered.png'});
+      await clickItem(page,1000);
+      await page.waitForFunction(()=>window.__imguiGallery?.filter===0);
+      // Screenshot real list scrolling in the catalogue, not just the 100k-row demo.
+      await page.mouse.move(width*.63,height*.7);
+      await page.mouse.wheel(0,675);
+      await page.waitForTimeout(200);
+      await page.screenshot({path:'visual-review/desktop-catalog-scrolled.png'});
+      await page.mouse.wheel(0,-2600);
+      await page.waitForTimeout(300);
+    }
     if(name==='desktop'){
       await clickItem(page,910,false);
       await page.waitForTimeout(150);

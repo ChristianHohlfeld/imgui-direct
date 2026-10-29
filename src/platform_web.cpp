@@ -63,6 +63,9 @@ EM_JS(void, browser_qa_state, (int page,int clicks), {
     window.__imguiUIState={page,clicks};
 });
 
+EM_JS(void, browser_qa_gallery, (int matching,int drawn,int filter), {
+    window.__imguiGallery={matching,drawn,filter};
+});
 EM_JS(void, browser_qa_item, (int id,float x,float y,float w,float h), {
     window.__imguiItems=window.__imguiItems||{};
     window.__imguiItems[id]={x,y,w,h};
