@@ -17,7 +17,6 @@ extern "C" void browser_qa_item(int,float,float,float,float);
 
 namespace gallery {
 namespace {
-constexpr const char* groups[]={"Aktionen","Eingaben","Navigation","Layout","Feedback"};
 constexpr const char* descriptions[] = {
     "Aktionen auslösen und Varianten vergleichen.",
     "Text eingeben, ändern und validieren.",
@@ -216,8 +215,8 @@ bool tile(int index){
         ImGui::PopStyleColor();ImGui::PopStyleVar(2);
         ImGui::Dummy({0,4.f*s});
         ImGui::TextUnformatted(meta.name);
-        ImGui::PushStyleColor(ImGuiCol_TextDisabled,
-            {pal.baseContent.r,pal.baseContent.g,pal.baseContent.b,.64f});
+        ImGui::PushStyleColor(ImGuiCol_Text,
+            {pal.baseContent.r,pal.baseContent.g,pal.baseContent.b,.67f});
         ImGui::TextWrapped("%s",descriptions[index]);
         ImGui::PopStyleColor();
         opened=ui::Link("Zustände ansehen");
@@ -309,8 +308,9 @@ bool draw_index(int* outIndex){
     ImGui::PushID("component-index");
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{8.f*s,7.f*s});
     // A single search control, without a second oversized form label.
-    ImGui::SetNextItemWidth(-1);
-    ImGui::InputTextWithHint("##catalog-search","Komponente suchen ...",search,sizeof(search));
+    // Must use the shared native field adapter: unlike a raw ImGui input,
+    // this also exposes the real editing rectangle to the mobile IME bridge.
+    ui::Input("##catalog-search",search,sizeof(search),"Komponente suchen ...");
     ImGui::Dummy({0,3.f*s});
     bool opened=false;
     if(width>=850.f*s){
