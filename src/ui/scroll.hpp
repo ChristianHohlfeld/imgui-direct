@@ -145,11 +145,35 @@ inline void bounce_after_scroll(){
 // The short-lived displacement is a visual feedback layer, not a scroll engine.
 inline void render_bounce(int firstVertex){
     auto& q=state();
-    if(q.reduceMotion||std::abs(q.overscrollY)<.1f)return;
-    ImDrawList* draw=ImGui::GetWindowDrawList();
+    if(q.reduceMotion||std::abs(q.overscrollY)<.1f||!GImGui)return;
+    // A browser-like rubber band must move *every child card and its preview*
+    // together. An ImGui child has its own draw list, unlike text in the root.
+    ImGuiWindow* root=ImGui::GetCurrentWindow();
+    ImDrawList* draw=root->DrawList;
     firstVertex=std::clamp(firstVertex,0,draw->VtxBuffer.Size);
+    const float displacement=-q.overscrollY;
     for(int i=firstVertex;i<draw->VtxBuffer.Size;++i)
-        draw->VtxBuffer[i].pos.y-=q.overscrollY;
+        draw->VtxBuffer[i].pos.y+=displacement;
+
+    // Walk only active native child windows. Popups, tooltips and toasts are
+    // floating overlays and must stay fixed. All vertices/clip regions are
+    // translated together; the outer page clip remains a hard safety limit.
+    for(ImGuiWindow* child : GImGui->Windows){
+        if(child==root||!child->Active||!child->DrawList||
+           (child->Flags&(ImGuiWindowFlags_Popup|ImGuiWindowFlags_Tooltip)))continue;
+        bool descendant=false;
+        for(ImGuiWindow* parent=child->ParentWindow;parent;parent=parent->ParentWindow){
+            if(parent==root){descendant=true;break;}
+        }
+        if(!descendant)continue;
+        for(ImDrawVert& vertex:child->DrawList->VtxBuffer)
+            vertex.pos.y+=displacement;
+        for(ImDrawCmd& cmd:child->DrawList->CmdBuffer){
+            cmd.ClipRect.y=std::max(root->ClipRect.Min.y,cmd.ClipRect.y+displacement);
+            cmd.ClipRect.w=std::min(root->ClipRect.Max.y,cmd.ClipRect.w+displacement);
+            if(cmd.ClipRect.w<cmd.ClipRect.y)cmd.ClipRect.w=cmd.ClipRect.y;
+        }
+    }
 }
 inline void end_frame(){
     auto& q=state();q.discard();q.elasticInput=false;
