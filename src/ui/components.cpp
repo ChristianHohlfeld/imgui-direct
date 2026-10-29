@@ -98,9 +98,18 @@ void capture_control(){
         auto nav=GImGui->NavWindow->NavRectRel[GImGui->NavLayer];nav.Translate(GImGui->NavWindow->Pos);
         focused=GImGui->LastItemData.Rect.Contains(nav);
     }
-    controlInfo={{!touch&&ImGui::IsItemHovered(),ImGui::IsItemActive(),focused,
+    // InputScalar with step buttons, ColorEdit and other composite widgets
+    // finish in an ImGui item group. The group bounds are real, but the group's
+    // LastItemData may not carry the hover of its focused/hovered child.
+    // Only report a composite hover when ImGui itself reports a hovered item
+    // AND the pointer is within this control's actual submitted rectangle.
+    const auto minimum=ImGui::GetItemRectMin(),maximum=ImGui::GetItemRectMax();
+    const bool childHovered=!touch&&!ImGui::IsItemHovered()&&
+        ImGui::IsAnyItemHovered()&&ImRect(minimum,maximum).Contains(ImGui::GetIO().MousePos);
+    controlInfo={{!touch&&(ImGui::IsItemHovered()||childHovered),
+        ImGui::IsItemActive(),focused,
         ImGui::IsItemActivated(),bool(GImGui->LastItemData.ItemFlags&ImGuiItemFlags_Disabled),ImGui::IsItemDeactivated()},
-        ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),GImGui->LastItemData.ID};
+        minimum,maximum,GImGui->LastItemData.ID};
 }
 }
 ControlInfo last_control(){return controlInfo;}
