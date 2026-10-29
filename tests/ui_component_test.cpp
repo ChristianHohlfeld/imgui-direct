@@ -18,7 +18,7 @@ int main(){
     for(ui::Mode theme:{ui::Mode::Light,ui::Mode::Dark}){
         ui::set_mode(theme);ui::begin_frame();
         for(ui::Variant kind:{ui::Variant::Primary,ui::Variant::Secondary,
-                              ui::Variant::Neutral,ui::Variant::Outline,
+                              ui::Variant::Neutral,ui::Variant::Accent,ui::Variant::Outline,
                               ui::Variant::Ghost,ui::Variant::Soft,
                               ui::Variant::Error}){
             ui::Options opt;opt.variant=kind;

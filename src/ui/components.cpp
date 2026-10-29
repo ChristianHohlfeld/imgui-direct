@@ -21,6 +21,7 @@ Color intent(Variant v) {
     switch(v) {
     case Variant::Primary:return p.primary;
     case Variant::Secondary:return p.secondary;
+    case Variant::Accent:return p.accent;
     case Variant::Neutral:return p.neutral;
     case Variant::Error:return p.error;
     case Variant::Success:return p.success;
@@ -42,6 +43,7 @@ Paint paint(Options options){
     const Color base=intent(options.variant);
     const Color content=(options.variant==Variant::Primary)?p.primaryContent:
         (options.variant==Variant::Secondary)?p.secondaryContent:
+        (options.variant==Variant::Accent)?p.accentContent:
         (options.variant==Variant::Neutral)?p.neutralContent:
         (options.variant==Variant::Info)?p.infoContent:
         (options.variant==Variant::Success)?p.successContent:
@@ -87,7 +89,8 @@ using detail::field_end;
 }
 ButtonVisual button_visual(Options options){return paint(options);}
 float control_height(Size size){
-    const float desktop[]={28.f,33.f,38.f,44.f,50.f};
+    // daisyUI v5: btn-xs/sm/md/lg/xl are 24/32/40/48/56 logical px.
+    const float desktop[]={24.f,32.f,40.f,48.f,56.f};
     const float mobile[]={44.f,44.f,48.f,52.f,60.f};
     int i=std::clamp((int)size,0,4);
     return (is_touch()?mobile[i]:desktop[i])*scale();

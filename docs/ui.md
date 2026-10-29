@@ -220,3 +220,8 @@ Reference implementation values were taken from daisyUI `button.css`,
 `badge.css`, `alert.css`, `card.css`, `tab.css`, `progress.css`,
 `rating.css`, `link.css` and `chat.css` under the upstream
 `packages/daisyui/src/components/` directory.
+
+The native button variants include daisyUI's `Accent` role in addition to the
+existing primary/secondary/neutral/status/outline/soft/ghost variants. Button
+size tokens now follow the original 24/32/40/48/56 px XS–XL progression
+on desktop; touch-first minimum heights remain independently enforced.
