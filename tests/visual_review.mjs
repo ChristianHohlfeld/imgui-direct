@@ -48,7 +48,12 @@ try{
       await page.screenshot({path:'visual-review/desktop-catalog-dark.png'});
       await clickItem(page,910,false);
       await page.waitForTimeout(150);
-      // Card action must open the real state inspector, not a mock page.
+      // Card action must remain visible and clickable even when the
+      // description wraps and the gallery has been scrolled.
+      await page.waitForFunction(()=>{
+        const r=window.__imguiItems?.[900];
+        return r&&r.y>140&&r.y<880&&r.h>5;
+      });
       await clickItem(page,900,false);
       await page.waitForFunction(()=>window.__imguiUIState?.page===8);
       await clickItem(page,0,false);

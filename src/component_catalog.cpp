@@ -4,6 +4,7 @@
 #include "ui/extended.hpp"
 #include "ui/essentials.hpp"
 #include "ui/theme.hpp"
+#include "ui/scroll.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <algorithm>
@@ -172,8 +173,19 @@ void sample(int i){
     }
 }
 
-constexpr float tileHeight=248.f;
+constexpr float tileHeight=282.f;
 constexpr float heroHeight=142.f;
+float sample_width(int i){
+    // Compact examples are centered as actual components, not merely
+    // placed at the left edge of a centered 244px container.
+    if(i==0)return 145.f;
+    if(i==4||i==5||i==6||i==37)return 175.f;
+    if(i==20||i==22||i==23||i==42)return 150.f;
+    if(i==30||i==40||i==41||i==48)return 132.f;
+    if(i==33||i==34)return 95.f;
+    if(i==43||i==44||i==49)return 195.f;
+    return 244.f;
+}
 float sample_height(int i){
     // Give multiline/native complex controls enough room to render entirely.
     if(i==2||i==10||i==11||i==24||i==25||i==26||i==29||i==36||i==46||i==51)
@@ -203,7 +215,7 @@ bool tile(int index){
         if(ImGui::BeginChild("##visual-preview",{0,heroHeight*s},ImGuiChildFlags_None,
                 ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
             const ImVec2 area=ImGui::GetContentRegionAvail();
-            const float contentW=std::min(area.x,244.f*s);
+            const float contentW=std::min(area.x,sample_width(index)*s);
             const float contentH=std::min(area.y,sample_height(index)*s);
             ImGui::SetCursorPosY(ImGui::GetCursorPosY()+std::max(0.f,(area.y-contentH)*.5f));
             ImGui::SetCursorPosX(ImGui::GetCursorPosX()+std::max(0.f,(area.x-contentW)*.5f));
@@ -224,12 +236,15 @@ bool tile(int index){
         ImGui::TextDisabled("  %02d",index+1);
         ui::Muted(descriptions[index]);
         // Fixed baseline across all cards, regardless of description length.
-        const float footerY=(tileHeight-ui::control_height(ui::Size::SM)/s-6.f)*s;
+        const float footerY=(tileHeight-ui::control_height(ui::Size::SM)/s-10.f)*s;
         if(ImGui::GetCursorPosY()<footerY)ImGui::SetCursorPosY(footerY);
         ui::Options action;action.variant=ui::Variant::Ghost;action.size=ui::Size::SM;
         opened=ui::Button("Details / Zustände",action);
-#ifdef __EMSCRIPTEN__
         const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        // A previous layout silently clipped the entire action for cards
+        // with two lines of text. The footer must fit *inside* the tile.
+        IM_ASSERT(b.y<=ImGui::GetWindowPos().y+ImGui::GetWindowSize().y+0.5f*s);
+#ifdef __EMSCRIPTEN__
         browser_qa_item(900+index,a.x,a.y,b.x-a.x,b.y-a.y);
 #endif
     }
@@ -238,11 +253,12 @@ bool tile(int index){
     ++drawnTiles;
     return opened;
 }
-void filter_buttons(bool vertical,float width){
+bool filter_buttons(bool vertical,float width){
     constexpr const char* options[]={"Alle","Aktionen","Eingaben","Navigation",
                                       "Darstellung","Feedback","Layout"};
     const float s=ui::scale(),gap=ImGui::GetStyle().ItemSpacing.x;
     float consumed=0.f;
+    bool changed=false;
     ImGui::PushID("catalog-filters");
     for(int i=0;i<groupCount+1;++i){
         const float w=vertical?width:
@@ -255,7 +271,7 @@ void filter_buttons(bool vertical,float width){
         b.variant=filter==i?ui::Variant::Soft:ui::Variant::Ghost;
         b.state.selected=filter==i;
         if(ui::Button(options[i],b,{w,0})){
-            if(filter!=i){filter=i;ImGui::SetScrollY(0);}
+            if(filter!=i){filter=i;changed=true;}
         }
 #ifdef __EMSCRIPTEN__
         const auto a=ImGui::GetItemRectMin(),bb=ImGui::GetItemRectMax();
@@ -265,6 +281,7 @@ void filter_buttons(bool vertical,float width){
         consumed+=w;
     }
     ImGui::PopID();
+    return changed;
 }
 bool matches_item(int i){
     if(filter>0&&group_of(i)!=filter-1)return false;
@@ -342,7 +359,7 @@ bool draw_index(int* outIndex){
     const bool modified=ImGui::InputTextWithHint("##search",
         "Komponenten durchsuchen (Name, Funktion, Kategorie)",search,sizeof(search));
     ImGui::PopStyleVar();
-    if(modified)ImGui::SetScrollY(0);
+    if(modified&&width<850.f*s)ImGui::SetScrollY(0);
     ImGui::Dummy({0,5.f*s});
     bool opened=false;
     if(width>=850.f*s){
@@ -353,13 +370,21 @@ bool draw_index(int* outIndex){
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextDisabled("KATEGORIEN");
-            filter_buttons(true,std::max(1.f,ImGui::GetContentRegionAvail().x));
+            const bool changed=filter_buttons(true,std::max(1.f,ImGui::GetContentRegionAvail().x));
             ImGui::TableNextColumn();
-            opened=draw_groups(outIndex);
+            // Sticky category navigation: the right-hand results scroll
+            // independently, like daisyUI docs. Search and categories never
+            // disappear when browsing dozens of card previews.
+            if(changed||modified)ImGui::SetNextWindowScroll({0,0});
+            if(ImGui::BeginChild("##catalog-results",{0,0},ImGuiChildFlags_None)){
+                opened=draw_groups(outIndex);
+                ui::scroll::apply();
+            }
+            ImGui::EndChild();
             ImGui::EndTable();
         }
     }else{
-        filter_buttons(false,width);
+        if(filter_buttons(false,width))ImGui::SetScrollY(0);
         ImGui::Dummy({0,8.f*s});
         opened=draw_groups(outIndex);
     }
