@@ -28,6 +28,12 @@ try{
     assert.equal(initialGallery.matching,52,'All 52 components must remain discoverable');
     assert.equal(initialGallery.drawn,1,'The documentation shows one selected component, not a grid of miniatures');
     if(name==='desktop'){
+      // These are actual native C++ tab widgets, not HTML/CSS substitutes.
+      await clickItem(page,1700,false);
+      await page.waitForTimeout(160);
+      await page.screenshot({path:'visual-review/desktop-docs-code.png'});
+      await clickItem(page,1701,false);
+      await page.waitForTimeout(100);
       // The left navigation changes the right-hand documentation content.
       await clickItem(page,1220); // Dropdown is visible in the first sidebar section
       await page.waitForFunction(()=>!!window.__imguiItems?.[1420]);
@@ -37,6 +43,15 @@ try{
       await page.screenshot({path:'visual-review/desktop-docs-button.png'});
     }
     if(name==='mobile'){
+      // A wrapped fifth size button must remain entirely inside its preview
+      // stage, not disappear behind the next example on narrow screens.
+      const bounds=await page.evaluate(()=>({
+        fifth:window.__imguiItems?.[1710],stage:window.__imguiItems?.[1711]
+      }));
+      assert(bounds.fifth&&bounds.stage,'Native size preview geometry must be reported');
+      assert(bounds.fifth.y>=bounds.stage.y&&
+             bounds.fifth.y+bounds.fifth.h<=bounds.stage.y+bounds.stage.h-2,
+        'Xlarge wrapped button must fit entirely inside the mobile preview: '+JSON.stringify(bounds));
       // The gallery search is a REAL mobile-editable C++ field. Touch must
       // focus the shared native IME bridge; filtering must update the gallery.
       const field=await page.evaluate(()=>window.__imguiInputRegions?.[0]);
@@ -52,7 +67,24 @@ try{
       });
       await page.waitForFunction(()=>window.__imguiGallery?.matching>0&&window.__imguiGallery.matching<52);
       await page.screenshot({path:'visual-review/mobile-catalog-search-ime.png'});
+      // The hidden IME textarea is an INSERT-ONLY bridge and clears itself
+      // after forwarding text to C++. Setting DOM value='' does not delete the
+      // native ImGui search. Exercise genuine mobile Backspace input instead.
+      for(let k=0;k<6;++k){
+        await page.keyboard.press('Backspace');
+        await page.waitForTimeout(35); // each key pair crosses one native frame
+      }
+      await page.waitForFunction(()=>window.__imguiGallery?.matching===52);
       await page.evaluate(()=>document.getElementById('native-input').blur());
+      await clickItem(page,1300,true);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1220]);
+      await page.screenshot({path:'visual-review/mobile-docs-drawer.png'});
+      await clickItem(page,1220,true);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1420]);
+      await clickItem(page,1300,true);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1200]);
+      await clickItem(page,1200,true);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1400]);
     }
     if(name==='desktop'){
       // Independently scroll the right-hand examples. Left component list stays fixed.
@@ -73,15 +105,17 @@ try{
       await page.screenshot({path:'visual-review/desktop-catalog-dark.png'});
       await clickItem(page,910,false);
       await page.waitForTimeout(150);
-      // Card action must remain visible and clickable even when the
-      // description wraps and the gallery has been scrolled.
-      // Inspect button is below the examples; scroll there intentionally.
+      // Docs contain a variable number of genuine examples. Find the
+      // inspector action using native bounds, not a brittle scroll distance.
       await page.mouse.move(width*.67,height*.7);
-      await page.mouse.wheel(0,1900);
-      await page.waitForFunction(()=>{
-        const r=window.__imguiItems?.[900];
-        return r&&r.y>140&&r.y<950&&r.h>5;
-      });
+      let inspectorVisible=false;
+      for(let attempt=0;attempt<18;++attempt){
+        const r=await page.evaluate(()=>window.__imguiItems?.[900]);
+        if(r&&r.y>135&&r.y<height-45&&r.h>5){inspectorVisible=true;break;}
+        await page.mouse.wheel(0,450);
+        await page.waitForTimeout(90);
+      }
+      assert(inspectorVisible,'Inspector must be reachable after all example sections');
       await clickItem(page,900,false);
       await page.waitForFunction(()=>window.__imguiUIState?.page===8);
       await clickItem(page,0,false);
@@ -100,7 +134,7 @@ try{
       await page.waitForTimeout(700);
       const settled=await page.evaluate(()=>window.__imguiScrollDebug.elasticY);
       assert(Math.abs(settled)<Math.abs(bounce)*.15,
-        'Elastic scroll must spring back after gesture, not stick at boundary');
+        `Elastic scroll must spring back after gesture (start=${bounce}, end=${settled})`);
     }
     await clickItem(page,0,touch);
     await page.waitForFunction(()=>window.__imguiItems?.[100]&&window.__imguiUIState.page===0);

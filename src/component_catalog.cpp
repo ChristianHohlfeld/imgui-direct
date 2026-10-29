@@ -217,6 +217,40 @@ const char* code_example(int i){
     case 49:return "ui::Rating(\"Bewertung\", &stars, 5, ui::Size::MD);";
     case 50:return "ui::Segmented(\"Ansicht\", labels, &selected);";
     case 51:return "ui::ChatBubble(\"Hallo!\", true, ui::Tone::Primary);";
+    case 8:return "float value=.5f; ui::Number(\"Wert\", &value, .05f, 0.f, 1.f);";
+    case 9:return "int count=2; ui::Integer(\"Anzahl\", &count);";
+    case 10:return "float pos[3]={1,2,3}; ui::Vector3(\"Position\", pos);";
+    case 11:return "float color[4]={.4f,.3f,.9f,1}; ui::ColorEdit(\"Material\", color);";
+    case 12:return "float low=.2f, high=.8f; ui::Range(\"Distanz\", &low, &high, 0.f, 1.f);";
+    case 13:return "ui::FileInput(\"Asset\", \"modell.glb\", {});";
+    case 15:return "ui::NavItem items[]={{\"Szene\"},{\"Assets\"}};\\nui::Navigation(\"nav\", items, &selected);";
+    case 16:return "const char* path[]={\"Projekt\",\"Szene\",\"Aktuell\"};\\nui::Breadcrumbs(\"path\", path, &clicked);";
+    case 17:return "ui::Pagination(\"pages\", 22, 5, &page);";
+    case 18:return "if(ui::Accordion(\"Transform\",0,&expanded)) { /* Inhalt */ }";
+    case 19:return "ui::Collapse(\"Details\", &opened);";
+    case 20:return "if(ui::BeginDropdown(\"Aktionen\")) { ui::MenuItem(\"Öffnen\"); ui::EndDropdown(); }";
+    case 21:return "ui::MenuItem(\"Datei öffnen\", \"Ctrl+O\");";
+    case 22:return "if(ui::BeginContextMenu(\"menu\")) { ui::MenuItem(\"Kopieren\"); ui::EndContextMenu(); }";
+    case 23:return "if(ui::Button(\"Dialog öffnen\")) ui::OpenModal(\"Dialog\");\\nif(ui::BeginModal(\"Dialog\")) { /* Inhalt */ ui::EndModal(); }";
+    case 25:return "ui::BeginFieldset(\"group\", \"Objekte\"); /* Felder */ ui::EndFieldset();";
+    case 26:return "ui::TableColumn columns[]={{\"Objekt\"},{\"Typ\"}};\\nif(ui::BeginTable(\"table\",columns)) { /* Zeilen */ ui::EndTable(); }";
+    case 27:return "if(ui::TreeNode(\"root\",\"Projekt\")) { /* Kinder */ ui::EndTreeNode(); }";
+    case 28:return "ui::VirtualList(\"list\", 10000, 100.f, 24.f, renderRow);";
+    case 29:return "if(ui::BeginSplit(\"split\",&fraction)) { /* links */ }\\nif(ui::NextSplit()) { /* rechts */ } ui::EndSplit();";
+    case 33:return "ui::RadialProgress(\"radial\", .75f, ui::Size::SM);";
+    case 35:return "ui::Skeleton(\"skeleton\", {180,22});";
+    case 36:return "ui::Stat(\"Aktive Objekte\", \"1.024\", \"+12%\");";
+    case 37:return "ui::StatusDot(ui::Status::Success, \"Online\");";
+    case 38:return "const char* steps[]={\"Start\",\"Test\",\"Fertig\"};\\nui::Steps(\"steps\", steps, 1);";
+    case 39:return "ui::TimelineItem(\"Bearbeitet\", \"Heute, 12:00\", ui::Status::Success);";
+    case 40:return "ui::Avatar(\"CH\");";
+    case 41:return "ui::Kbd(\"Ctrl+S\");";
+    case 42:return "ui::Button(\"Zeiger hier\"); ui::Tooltip(\"Hinweis\");";
+    case 43:return "ui::Label(\"Bezeichnung\", true);";
+    case 44:return "ui::Validation(\"Gültiger Wert\", ui::ValidationState::Success);";
+    case 45:return "ui::Divider(\"Abschnitt\");";
+    case 46:return "ui::Heading(\"Überschrift\"); ui::Muted(\"Beschreibung\");";
+    case 47:return "ui::ToastQueue queue;\\nqueue.push(\"Gespeichert\",ui::Status::Success,now,3.0);\\nui::Toasts(\"toast\", queue, now);";
     default:return nullptr;
     }
 }
@@ -240,64 +274,73 @@ void switch_to(int i){
 void draw_nav(){
     const float s=ui::scale();
     ImGui::PushID("docs-navigation");
-    ui::Input("##docs-search",search,sizeof(search),"Komponente suchen ...");
-    ImGui::Dummy({0,9.f*s});
+    ImGui::PushFont(nullptr,19.f*s);
+    ImGui::TextUnformatted("Components");
+    ImGui::PopFont();
+    ImGui::Dummy({0,7.f*s});
+    ui::Input("##docs-search",search,sizeof(search),"Search components ...");
+    ImGui::Dummy({0,11.f*s});
+    ImGui::Separator();
     for(int group=0;group<groupCount;++group){
         bool any=false;
         for(int i=0;i<review::count();++i)
             if(group_of(i)==group&&matches_index(i)){any=true;break;}
         if(!any)continue;
-        ImGui::Dummy({0,6.f*s});
+        ImGui::Dummy({0,13.f*s});
         ImGui::TextDisabled("%s",groups[group]);
-        ImGui::Dummy({0,3.f*s});
+        ImGui::Dummy({0,8.f*s});
         for(int i=0;i<review::count();++i){
             if(group_of(i)!=group||!matches_index(i))continue;
             ImGui::PushID(i);
             const bool active=chosen==i;
             if(active){
+                const auto& p=ui::palette();
                 ImGui::PushStyleColor(ImGuiCol_Header,
-                    ImGui::GetColorU32({ui::palette().primary.r,ui::palette().primary.g,
-                                       ui::palette().primary.b,.13f}));
+                    {p.neutral.r,p.neutral.g,p.neutral.b,1.f});
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered,
+                    {p.neutral.r,p.neutral.g,p.neutral.b,1.f});
                 ImGui::PushStyleColor(ImGuiCol_Text,
-                    ImGui::GetColorU32({ui::palette().primary.r,ui::palette().primary.g,
-                                       ui::palette().primary.b,1.f}));
+                    {p.neutralContent.r,p.neutralContent.g,p.neutralContent.b,1.f});
             }
-            if(ImGui::Selectable(review::component(i).name,active,0,{0,30.f*s}))
+            if(ImGui::Selectable(review::component(i).name,active,0,{0,36.f*s}))
                 switch_to(i);
-            if(active)ImGui::PopStyleColor(2);
+            if(active)ImGui::PopStyleColor(3);
 #ifdef __EMSCRIPTEN__
             const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
             browser_qa_item(1200+i,a.x,a.y,b.x-a.x,b.y-a.y);
 #endif
             ImGui::PopID();
         }
+        ImGui::Dummy({0,8.f*s});
+        ImGui::Separator();
     }
     ImGui::PopID();
 }
 void draw_mobile_picker(){
     const float s=ui::scale();
+    // Native touch-editable search is independent of the navigation drawer.
     ui::Input("##docs-search-mobile",search,sizeof(search),"Komponente suchen ...");
-    ImGui::Dummy({0,4.f*s});
-    ImGui::SetNextItemWidth(-1);
-    if(ImGui::BeginCombo("##component-picker",review::component(chosen).name)){
-        for(int group=0;group<groupCount;++group){
-            bool any=false;
-            for(int i=0;i<review::count();++i)
-                if(group_of(i)==group&&matches_index(i)){any=true;break;}
-            if(!any)continue;
-            ImGui::SeparatorText(groups[group]);
-            for(int i=0;i<review::count();++i){
-                if(group_of(i)!=group||!matches_index(i))continue;
-                if(ImGui::Selectable(review::component(i).name,chosen==i))
-                    switch_to(i);
-            }
-        }
-        ImGui::EndCombo();
-    }
+    ImGui::Dummy({0,5.f*s});
+    ui::Options menu;menu.variant=ui::Variant::Outline;menu.fullWidth=true;
+    char label[128];
+    std::snprintf(label,sizeof(label),"Komponenten  /  %s",review::component(chosen).name);
+    if(ui::Button(label,menu))ImGui::OpenPopup("##docs-mobile-drawer");
 #ifdef __EMSCRIPTEN__
     const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
     browser_qa_item(1300,a.x,a.y,b.x-a.x,b.y-a.y);
 #endif
+    const auto viewport=ImGui::GetMainViewport();
+    const float width=std::min(viewport->Size.x-16.f*s,380.f*s);
+    ImGui::SetNextWindowPos({viewport->Pos.x+8.f*s,viewport->Pos.y+8.f*s},ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({width,std::max(220.f*s,viewport->Size.y-16.f*s)},ImGuiCond_Appearing);
+    if(ImGui::BeginPopup("##docs-mobile-drawer",ImGuiWindowFlags_NoSavedSettings)){
+        // The sidebar is the exact same native component navigator on desktop
+        // and mobile. Popups dismiss on outside tap; selection closes it.
+        draw_nav();
+        ui::scroll::apply();
+        if(changedSelection)ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
 }
 void variant_sample(int i){
     const float s=ui::scale();
@@ -354,59 +397,206 @@ void variant_sample(int i){
         sample(i);
     }
 }
-bool has_variants(int i){
-    return i==0||i==1||i==4||i==6||i==30||i==31||i==32||i==49;
-}
-void example_block(const char* title,const char* summary,int i,bool variants,bool stateExample){
+
+enum class ExampleKind { Standard, Colors, Sizes, Responsive, Outline, Soft, Disabled, Loading, Variants, State };
+struct ExampleDoc {const char* title; const char* summary; ExampleKind kind;};
+void button_example(ExampleKind kind){
     const float s=ui::scale();
-    ImGui::PushID(title);
-    ImGui::Dummy({0,14.f*s});
-    ImGui::PushFont(nullptr,18.f*s);
-    ImGui::TextUnformatted(title);
-    ImGui::PopFont();
-    if(summary&&*summary){
-        ImGui::PushStyleColor(ImGuiCol_TextDisabled,
-             ImGui::GetColorU32({ui::palette().baseContent.r,ui::palette().baseContent.g,
-                                 ui::palette().baseContent.b,.65f}));
-        ImGui::TextWrapped("%s",summary);
-        ImGui::PopStyleColor();
-    }
-    ImGui::Dummy({0,6.f*s});
-    const auto& p=ui::palette();
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,
-        {p.base200.r,p.base200.g,p.base200.b,1.f});
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,p.metrics.radiusBox*s);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{20.f*s,24.f*s});
-    const float height=(stateExample?220.f:(variants&&i==31?235.f:195.f))*s;
-    if(ImGui::BeginChild("##example",{0,height},ImGuiChildFlags_None,
-                         ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
-        const float width=ImGui::GetContentRegionAvail().x;
-        const float wanted=stateExample?570.f:540.f;
-        const float spare=width-std::min(width,wanted*s);
-        if(spare>0)ImGui::SetCursorPosX(ImGui::GetCursorPosX()+spare*.5f);
-        if(ImGui::BeginChild("##live",{std::min(width,wanted*s),0},
-            ImGuiChildFlags_None,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
-            // As on the real docs, short live controls are centered vertically
-            // inside the preview stage; multiline fields retain natural flow.
-            float estimated=0.f;
-            if(i==0)estimated=variants?86.f:ui::control_height(ui::Size::MD)/s;
-            else if(i==30)estimated=variants?54.f:26.f;
-            else if(i==33||i==34||i==40||i==41||i==48||i==49||i==50)
-                estimated=50.f;
-            else if(i==4||i==5||i==6||i==19||i==21||i==37||i==42)
-                estimated=55.f;
-            if(estimated>0.f){
-                const float free=ImGui::GetContentRegionAvail().y-estimated*s;
-                if(free>0)ImGui::SetCursorPosY(ImGui::GetCursorPosY()+free*.5f);
+    const char* label="Button";
+    if(kind==ExampleKind::Sizes){
+        constexpr ui::Size sizes[]={ui::Size::XS,ui::Size::SM,ui::Size::MD,ui::Size::LG,ui::Size::XL};
+        constexpr const char* labels[]={"Xsmall","Small","Medium","Large","Xlarge"};
+        for(int n=0;n<5;++n){
+            ImGui::PushID(n);
+            if(n){
+                const float next=ImGui::CalcTextSize(labels[n]).x+45.f*s;
+                const float right=ImGui::GetWindowPos().x+ImGui::GetWindowContentRegionMax().x;
+                if(ImGui::GetItemRectMax().x+ImGui::GetStyle().ItemSpacing.x+next<right)
+                    ImGui::SameLine();
             }
-            if(stateExample)review::preview();
-            else if(variants)variant_sample(i);
-            else sample(i);
+            ui::Options options;options.variant=ui::Variant::Neutral;options.size=sizes[n];
+            ui::Button(labels[n],options);
+#ifdef __EMSCRIPTEN__
+            if(n==4){
+                const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+                browser_qa_item(1710,a.x,a.y,b.x-a.x,b.y-a.y);
+            }
+#endif
+            ImGui::PopID();
         }
-        ImGui::EndChild();
+    }else if(kind==ExampleKind::Responsive){
+        ui::Options options;options.variant=ui::Variant::Neutral;
+        const float width=ImGui::GetContentRegionAvail().x;
+        options.size=width<360.f*s?ui::Size::SM:width<700.f*s?ui::Size::MD:ui::Size::LG;
+        ui::Button("Responsive",options);
+    }else if(kind==ExampleKind::Colors){
+        constexpr const char* labels[]={"Neutral","Primary","Secondary","Accent","Info","Success","Warning","Error"};
+        constexpr ui::Variant variants[]={ui::Variant::Neutral,ui::Variant::Primary,ui::Variant::Secondary,
+            ui::Variant::Accent,ui::Variant::Info,ui::Variant::Success,ui::Variant::Warning,ui::Variant::Error};
+        for(int n=0;n<8;++n){
+            ImGui::PushID(n);
+            if(n){
+                const float next=ImGui::CalcTextSize(labels[n]).x+43.f*s;
+                const float right=ImGui::GetWindowPos().x+ImGui::GetWindowContentRegionMax().x;
+                if(ImGui::GetItemRectMax().x+ImGui::GetStyle().ItemSpacing.x+next<right)
+                    ImGui::SameLine();
+            }
+            ui::Button(labels[n],variants[n]);
+            ImGui::PopID();
+        }
+    }else if(kind==ExampleKind::Outline||kind==ExampleKind::Soft){
+        const ui::Variant style=kind==ExampleKind::Outline?ui::Variant::Outline:ui::Variant::Soft;
+        ui::Button("Default",style);ImGui::SameLine();
+        ui::Button("Another",style);ImGui::SameLine();
+        ui::Button("Action",style);
+    }else if(kind==ExampleKind::Disabled||kind==ExampleKind::Loading){
+        ui::Options options;options.variant=ui::Variant::Primary;
+        options.state.disabled=kind==ExampleKind::Disabled;
+        options.state.loading=kind==ExampleKind::Loading;
+        ui::Button(kind==ExampleKind::Disabled?"Disabled":"Loading",options);
+    }else{
+        ui::Button(label,ui::Variant::Neutral);ImGui::SameLine();
+        ui::Button("Primary",ui::Variant::Primary);
+    }
+}
+const char* code_for_example(int i,ExampleKind kind){
+    if(i==0){
+        switch(kind){
+        case ExampleKind::Sizes:return "ui::Options opt;\nopt.size = ui::Size::XS;  // XS, SM, MD, LG, XL\nui::Button(\"Xsmall\", opt);";
+        case ExampleKind::Responsive:return "ui::Options opt;\nopt.size = viewportWidth < 700 ? ui::Size::SM : ui::Size::LG;\nui::Button(\"Responsive\", opt);";
+        case ExampleKind::Colors:return "ui::Button(\"Neutral\", ui::Variant::Neutral);\nui::Button(\"Primary\", ui::Variant::Primary);\nui::Button(\"Success\", ui::Variant::Success);";
+        case ExampleKind::Outline:return "ui::Button(\"Default\", ui::Variant::Outline);";
+        case ExampleKind::Soft:return "ui::Button(\"Default\", ui::Variant::Soft);";
+        case ExampleKind::Disabled:return "ui::Options opt;\nopt.state.disabled = true;\nui::Button(\"Disabled\", opt);";
+        case ExampleKind::Loading:return "ui::Options opt;\nopt.state.loading = true;\nui::Button(\"Loading\", opt);";
+        default:break;
+        }
+    }
+    return code_example(i);
+}
+void preview_example(int i,ExampleKind kind){
+    if(i==0){button_example(kind);return;}
+    if(kind==ExampleKind::State){review::preview();return;}
+    if(kind==ExampleKind::Variants){variant_sample(i);return;}
+    if(kind==ExampleKind::Disabled){
+        if(i==1){static char value[80]="Gesperrt";ui::Field f;f.disabled=true;ui::Input("Name",value,sizeof(value),"",f);return;}
+        if(i==4){static bool value=true;ui::Field f;f.disabled=true;ui::Checkbox("Gesperrt",&value,f);return;}
+        if(i==6){static bool value=true;ui::Field f;f.disabled=true;ui::Switch("Gesperrt",&value,f);return;}
+    }
+    sample(i);
+}
+void example_block(const ExampleDoc& doc,int i){
+    const float s=ui::scale();
+    ImGui::PushID(doc.title);
+    ImGui::Dummy({0,24.f*s});
+    ImGui::PushFont(nullptr,19.f*s);
+    ImGui::TextUnformatted(doc.title);
+    ImGui::PopFont();
+    if(doc.summary&&*doc.summary){
+        ImGui::Dummy({0,5.f*s});
+        ui::Muted(doc.summary);
+    }
+    ImGui::Dummy({0,12.f*s});
+    const auto& p=ui::palette();
+    // Each example has one working Preview/C++ pair, exactly above its own
+    // canvas. Unlike the old generic docs, the code tab belongs to this example.
+    const ImGuiID tabKey=ImGui::GetID("##tab");
+    ImGuiStorage* state=ImGui::GetStateStorage();
+    const int current=state->GetInt(tabKey,0);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{0,0});
+    ImGui::PushStyleColor(ImGuiCol_Header,
+        {p.base100.r,p.base100.g,p.base100.b,1.f});
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered,
+        {p.base200.r,p.base200.g,p.base200.b,1.f});
+    if(ImGui::Selectable("Preview##tab",current==0,0,{100.f*s,34.f*s}))state->SetInt(tabKey,0);
+#ifdef __EMSCRIPTEN__
+    if(i==0&&doc.kind==ExampleKind::Sizes){
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        browser_qa_item(1701,a.x,a.y,b.x-a.x,b.y-a.y);
+    }
+#endif
+    ImGui::SameLine(0,0);
+    if(ImGui::Selectable("C++##tab",current==1,0,{74.f*s,34.f*s}))state->SetInt(tabKey,1);
+#ifdef __EMSCRIPTEN__
+    if(i==0&&doc.kind==ExampleKind::Sizes){
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        browser_qa_item(1700,a.x,a.y,b.x-a.x,b.y-a.y);
+    }
+#endif
+    ImGui::PopStyleColor(2);
+    ImGui::PopStyleVar();
+    const int mode=state->GetInt(tabKey,0);
+    const bool wrappedSizes=i==0&&doc.kind==ExampleKind::Sizes&&
+        ImGui::GetContentRegionAvail().x<650.f*s;
+    // Five size buttons can wrap on phones. Never clip the second row.
+    const float height=(wrappedSizes?225.f:doc.kind==ExampleKind::Colors?195.f:
+                        doc.kind==ExampleKind::State?230.f:154.f)*s;
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,p.metrics.radiusBox*s);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{22.f*s,18.f*s});
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,{p.base100.r,p.base100.g,p.base100.b,1});
+    ImGui::PushStyleColor(ImGuiCol_Border,{p.base300.r,p.base300.g,p.base300.b,1});
+    if(ImGui::BeginChild("##example-stage",{0,height},ImGuiChildFlags_Borders,
+                         ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
+        if(mode==1){
+            const char* code=code_for_example(i,doc.kind);
+            ImGui::PushTextWrapPos();
+            ImGui::TextUnformatted(code?code:"// See the public C++ component API in ui/components.hpp");
+            ImGui::PopTextWrapPos();
+        }else{
+            // Very subtle diagonal reference-preview hatch drawn behind the
+            // real native controls. No CSS, DOM, texture or overlay intercepts.
+            const auto lo=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
+            auto* draw=ImGui::GetWindowDrawList();
+            const float h=size.y;
+            const ImU32 stripe=ImGui::ColorConvertFloat4ToU32(
+                {p.baseContent.r,p.baseContent.g,p.baseContent.b,.045f});
+            draw->PushClipRect({lo.x+1,lo.y+1},{lo.x+size.x-1,lo.y+h-1},true);
+            for(float x=lo.x-h;x<lo.x+size.x;x+=20.f*s)
+                draw->AddLine({x,lo.y+h},{x+h,lo.y},stripe,1.f*s);
+            draw->PopClipRect();
+            const float w=ImGui::GetContentRegionAvail().x;
+            const float liveWidth=std::min(w,900.f*s);
+            const float spare=w-liveWidth;
+            if(spare>0)ImGui::SetCursorPosX(ImGui::GetCursorPosX()+spare*.5f);
+            ImGui::PushStyleColor(ImGuiCol_ChildBg,{p.base100.r,p.base100.g,p.base100.b,0});
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{0,0});
+            if(ImGui::BeginChild("##live",{liveWidth,0},ImGuiChildFlags_None,
+                       ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
+                const bool small=doc.kind==ExampleKind::Standard||doc.kind==ExampleKind::Disabled||
+                    doc.kind==ExampleKind::Outline||doc.kind==ExampleKind::Soft||
+                    doc.kind==ExampleKind::Responsive||doc.kind==ExampleKind::Loading||
+                    doc.kind==ExampleKind::Sizes;
+                const float contentHeight=small?(wrappedSizes?132.f:58.f)*s:92.f*s;
+                const float free=ImGui::GetContentRegionAvail().y-contentHeight;
+                if(free>0)ImGui::SetCursorPosY(ImGui::GetCursorPosY()+free*.5f);
+                // Do not center the first button only: center the full group.
+                if(i==0){
+                    float estimate=0;
+                    switch(doc.kind){
+                    case ExampleKind::Sizes:estimate=470.f*s;break;
+                    case ExampleKind::Colors:estimate=750.f*s;break;
+                    case ExampleKind::Responsive:estimate=150.f*s;break;
+                    case ExampleKind::Outline:case ExampleKind::Soft:estimate=300.f*s;break;
+                    case ExampleKind::Disabled:case ExampleKind::Loading:estimate=130.f*s;break;
+                    default:estimate=185.f*s;
+                    }
+                    const float spareX=ImGui::GetContentRegionAvail().x-estimate;
+                    if(spareX>0)ImGui::SetCursorPosX(ImGui::GetCursorPosX()+spareX*.5f);
+                }
+                preview_example(i,doc.kind);
+            }
+            ImGui::EndChild();
+            ImGui::PopStyleVar();ImGui::PopStyleColor();
+        }
     }
     ImGui::EndChild();
-    ImGui::PopStyleVar(2);ImGui::PopStyleColor();
+#ifdef __EMSCRIPTEN__
+    if(i==0&&doc.kind==ExampleKind::Sizes){
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        browser_qa_item(1711,a.x,a.y,b.x-a.x,b.y-a.y);
+    }
+#endif
+    ImGui::PopStyleColor(2);ImGui::PopStyleVar(2);
     ImGui::PopID();
 }
 void draw_details(){
@@ -430,9 +620,24 @@ void draw_details(){
     ImGui::PopTextWrapPos();
     ImGui::Dummy({0,14.f*s});
     ImGui::Separator();
-    example_block("Standard","Interaktives Beispiel der nativen C++-Komponente.",chosen,false,false);
-    if(has_variants(chosen))
-        example_block("Varianten","Weitere Farben, Zustände und Darstellungsformen.",chosen,true,false);
+    if(chosen==0){
+        const ExampleDoc examples[]={
+            {"Button sizes","Fünf native Größen: von Xsmall bis Xlarge.",ExampleKind::Sizes},
+            {"Responsive button","Die Größe passt sich an die verfügbare Breite an.",ExampleKind::Responsive},
+            {"Button colors","Semantische Farben aus den gemeinsamen Theme-Tokens.",ExampleKind::Colors},
+            {"Outline buttons","Zurückhaltende Aktionen mit Umrandung.",ExampleKind::Outline},
+            {"Soft buttons","Dezente Schaltflächen für sekundäre Aktionen.",ExampleKind::Soft},
+            {"Disabled button","Nicht verfügbare Aktionen sind sichtbar deaktiviert.",ExampleKind::Disabled},
+            {"Loading button","Ladezustand direkt im nativen Button.",ExampleKind::Loading},
+        };
+        for(const auto& example:examples)example_block(example,chosen);
+    }else{
+        example_block({"Basic example","Direkt ausprobieren: echte native C++-Komponente.",ExampleKind::Standard},chosen);
+        if(chosen==1||chosen==4||chosen==6||chosen==30||chosen==31||chosen==32||chosen==49)
+            example_block({"Variants","Farben, Größen und verfügbare Varianten.",ExampleKind::Variants},chosen);
+        if(chosen==1||chosen==4||chosen==6)
+            example_block({"Disabled","Nicht verfügbar, ohne die Darstellung zu verstecken.",ExampleKind::Disabled},chosen);
+    }
     ImGui::Dummy({0,12.f*s});
     ImGui::PushFont(nullptr,18.f*s);
     ImGui::TextUnformatted("Interaktive Zustände");
@@ -450,22 +655,7 @@ void draw_details(){
     }
     if(next!=static_cast<int>(review::selected_state()))
         review::select(chosen,static_cast<review::State>(next));
-    example_block("Zustandsvorschau","Echter ImGui-Zustand, keine Bildsimulation.",chosen,false,true);
-    const char* code=code_example(chosen);
-    if(code){
-        ImGui::Dummy({0,16.f*s});
-        ImGui::PushFont(nullptr,18.f*s);
-        ImGui::TextUnformatted("C++");
-        ImGui::PopFont();
-        ImGui::PushStyleColor(ImGuiCol_ChildBg,
-            {ui::palette().base300.r,ui::palette().base300.g,ui::palette().base300.b,1});
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,ui::palette().metrics.radiusBox*s);
-        if(ImGui::BeginChild("##code",{0,88.f*s},ImGuiChildFlags_None,
-                             ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
-            ImGui::TextWrapped("%s",code);
-        }
-        ImGui::EndChild();ImGui::PopStyleVar();ImGui::PopStyleColor();
-    }
+    example_block({"State preview","Echter ImGui-Zustand, keine Bildsimulation.",ExampleKind::State},chosen);
     ImGui::Dummy({0,20.f*s});
     ui::Options detail;detail.size=ui::Size::SM;detail.variant=ui::Variant::Outline;
     const bool inspect=ui::Button("Alle Zustände detailliert prüfen",detail);
@@ -488,14 +678,15 @@ bool draw_index(int* outIndex){
     resetArticleScroll=false;
     ImGui::PushID("component-documentation");
     if(desktop){
-        const float navWidth=235.f*s;
+        const float available=ImGui::GetContentRegionAvail().x;
+        const float navWidth=std::clamp(available*.255f,235.f*s,370.f*s);
         ImGui::PushStyleColor(ImGuiCol_ChildBg,
             {ui::palette().base100.r,ui::palette().base100.g,ui::palette().base100.b,1});
         ImGui::BeginChild("##docs-sidebar",{navWidth,0},ImGuiChildFlags_None);
         draw_nav();
         ui::scroll::apply();
         ImGui::EndChild();ImGui::PopStyleColor();
-        ImGui::SameLine(0,18.f*s);
+        ImGui::SameLine(0,24.f*s);
         if(changedSelection||resetScroll)ImGui::SetNextWindowScroll({0,0});
         ImGui::BeginChild("##docs-article",{0,0},ImGuiChildFlags_None);
         draw_details();
