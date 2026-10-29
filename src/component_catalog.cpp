@@ -98,11 +98,15 @@ bool matches(const char* name,const char* term){
     for(const char* p=term;*p&&j<127;++p)needle[j++]=(char)std::tolower((unsigned char)*p);
     needle[j]=0;return std::strstr(buffer,needle)!=nullptr;
 }
+ui::ToastQueue demoToasts;
+void sample_list_row(int i,void*){
+    ImGui::Text("Eintrag %04d",i+1);
+}
 void sample(int i){
     static char buffer[80]="Projektname";static char note[100]="Eine Beschreibung";
     static int selected=0,number=2,stars=4,expanded=-1,nav=0,page=0;
     static bool flag=true,opened=false;
-    static float volume=.65f,vec[3]={1,2,3},color[4]={.4f,.3f,.9f,1},lo=.2f,hi=.8f;
+    static float volume=.65f,vec[3]={1,2,3},color[4]={.4f,.3f,.9f,1},lo=.2f,hi=.8f,split=.46f;
     const char* options[]={"Szene","Assets","Einstellungen"};
     switch(i){
     case 0:ui::Button("Primär",ui::Variant::Primary);ImGui::SameLine();ui::Button("Soft",ui::Variant::Soft);break;
@@ -146,8 +150,20 @@ void sample(int i){
         break;
     }
     case 27:if(ui::TreeNode("root","Projekt")){ui::TreeNode("leaf","Kamera",false,true);ui::EndTreeNode();}break;
-    case 28:for(int n=0;n<3;++n)ImGui::BulletText("Element %d",n+1);break;
-    case 29:ui::Muted("Outliner  |  Inspector");ui::Progress("Größe",.4f);break;
+    case 28:{
+        // The same real virtual-list primitive as the application uses.
+        const float row=ImGui::GetTextLineHeightWithSpacing();
+        ui::VirtualList("##catalog-virtual-list",10000,102.f*ui::scale(),row,sample_list_row);
+        break;
+    }
+    case 29:{
+        // The actual draggable splitter, not a static progress-bar mock.
+        if(ui::BeginSplit("##catalog-split",&split,{0,105.f*ui::scale()},false,44.f*ui::scale()))
+            ImGui::TextUnformatted("Links");
+        if(ui::NextSplit())ImGui::TextUnformatted("Rechts");
+        ui::EndSplit();
+        break;
+    }
     case 30:ui::Badge("Info",{ui::Tone::Info,ui::Surface::Soft});ImGui::SameLine();ui::Badge("Neu",{ui::Tone::Primary,ui::Surface::Solid});break;
     case 31:ui::Alert("Gespeichert","Änderung übernommen",{ui::Tone::Success,ui::Surface::Soft});break;
     case 32:ui::Progress("Fortschritt",.72f);break;
@@ -165,7 +181,10 @@ void sample(int i){
     case 44:ui::Validation("Gültiger Wert",ui::ValidationState::Success);break;
     case 45:ui::Divider("Abschnitt");break;
     case 46:ui::Heading("Überschrift");ui::Muted("Klar, lesbar, übersichtlich.");break;
-    case 47:ui::Badge("Benachrichtigung",{ui::Tone::Info,ui::Surface::Soft});break;
+    case 47:
+        if(ui::Button("Toast anzeigen",ui::Variant::Primary))
+            demoToasts.push("Änderung gespeichert",ui::Status::Success,ImGui::GetTime(),3.0);
+        break;
     case 48:ui::Link("Details öffnen");break;
     case 49:ui::Rating("Sterne",&stars,5,ui::Size::SM);break;
     case 50:{const char* modes[]={"A","B","C"};ui::Segmented("join",modes,&selected);break;}
@@ -179,6 +198,7 @@ float sample_width(int i){
     // Compact examples are centered as actual components, not merely
     // placed at the left edge of a centered 244px container.
     if(i==0)return 145.f;
+    if(i==47)return 155.f;
     if(i==4||i==5||i==6||i==37)return 175.f;
     if(i==20||i==22||i==23||i==42)return 150.f;
     if(i==30||i==40||i==41||i==48)return 132.f;
@@ -188,7 +208,7 @@ float sample_width(int i){
 }
 float sample_height(int i){
     // Give multiline/native complex controls enough room to render entirely.
-    if(i==2||i==10||i==11||i==24||i==25||i==26||i==29||i==36||i==46||i==51)
+    if(i==2||i==10||i==11||i==24||i==25||i==26||i==28||i==29||i==36||i==46||i==51)
         return 120.f;
     if(i==1||i==3||i==7||i==8||i==9||i==12||i==13||i==31||i==39)
         return 95.f;
@@ -391,6 +411,9 @@ bool draw_index(int* outIndex){
         opened=draw_groups(outIndex);
     }
     ImGui::PopID();
+    // Toasts are a real viewport-level native overlay; render once after
+    // the scrolling catalogue rather than clipping them into one card.
+    ui::Toasts("##catalog-demo-toasts",demoToasts,ImGui::GetTime());
     return opened;
 }
 } // namespace gallery
