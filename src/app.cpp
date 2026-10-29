@@ -292,7 +292,7 @@ void layout_demo(){
 void theme(bool narrow){
     introduction("Erscheinungsbild","Eine gemeinsame Palette für jedes Element.");
     if(ui::BeginCard("##theme")){
-        ui::Heading("Slate");
+        ui::Heading("daisyUI Base");
         ui::Muted("Hell und Dunkel mit abgestimmten Kontrasten.");
         space();
         if(ui::Switch("Dunkles Design",&d.dark))

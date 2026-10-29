@@ -51,7 +51,7 @@ ui::Input("Name",name,sizeof(name),"Name",f);
 
 ## Themes
 
-One palette of semantic tokens. Built-in `Slate Dark` and `Slate Light`
+One palette of semantic tokens. Built-in `daisyDark` and `daisyLight`
 share component definitions. Custom themes are data, not another stylesheet:
 
 ```cpp
@@ -168,3 +168,25 @@ precedence, genuine interaction checks and the complete screenshot matrix.
 and `indeterminate` (Checkbox only). Existing aggregate initializers remain valid.
 `last_control()` returns the actual native control's ID, bounds and interaction,
 even after helper text; hover/press/focus are always derived from real input.
+
+## daisyUI v5 base-theme schema
+
+The target is the [daisyUI theme schema](https://daisyui.com/docs/themes/) instead
+of a Slate look. Cards and inputs use `base-100`, page chrome uses `base-200`,
+borders use `base-300`; semantic fills use their matching `*-content` foreground.
+
+| daisyUI property | Native equivalent |
+|---|---|
+| `--color-base-100/200/300/content` | `Palette::base100/base200/base300/baseContent` |
+| `--color-primary/secondary/accent/neutral(-content)` | `Palette` brand and foreground roles |
+| `--color-info/success/warning/error(-content)` | `Palette` feedback roles |
+| `--radius-selector/field/box` | `Palette::metrics.radiusSelector/radiusField/radiusBox` |
+| `--size-selector/field` | `Palette::metrics.sizeSelector/sizeField` |
+| `--border` | `Palette::metrics.border` |
+| `--depth/noise` | `Palette::metrics.depth/noise` (reserved; no CSS effects in native rendering) |
+
+Palette colors are sRGB **approximations** of daisyUI's OKLCH themes, not
+identical browser CSS pixels. The geometry values use logical pixels and
+are scaled once by the native backend. Former `slateLight`/`slateDark`
+names remain as compatibility aliases. The renderer, touch, IME and Kern
+integration contract are untouched.

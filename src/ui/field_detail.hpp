@@ -63,7 +63,7 @@ inline void field_begin(Field f,bool lockReadOnly=false){
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive,vec(p.active));
     ImGui::PushStyleColor(ImGuiCol_CheckMark,vec(p.accent));
     ImGui::PushStyleColor(ImGuiCol_SliderGrab,vec(p.accent));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,(f.invalid||f.validation!=ValidationState::None)?1.5f:1.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,(f.invalid||f.validation!=ValidationState::None)?palette().metrics.border*1.5f:palette().metrics.border);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{10.f*scale(),std::max(0.f,(control_height(f.size)-ImGui::GetFontSize())*.5f)});
 }
 inline void field_end(Field f){

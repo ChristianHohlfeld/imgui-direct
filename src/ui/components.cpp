@@ -43,19 +43,22 @@ Paint paint(Options options){
     const Color content=(options.variant==Variant::Primary)?p.primaryContent:
         (options.variant==Variant::Secondary)?p.secondaryContent:
         (options.variant==Variant::Neutral)?p.neutralContent:
-        (subtle?p.baseContent:p.base100);
+        (options.variant==Variant::Info)?p.infoContent:
+        (options.variant==Variant::Success)?p.successContent:
+        (options.variant==Variant::Warning)?p.warningContent:
+        (options.variant==Variant::Error)?p.errorContent:p.baseContent;
     // Converting a solid background into itself cannot produce a hover or
     // pressed state. Differentiate them in the same semantic color scale.
-    Color normal=subtle?(ghost||outline?p.base100:blend(p.base200,base,.12f)):base;
+    Color normal=subtle?(ghost||outline?Color{p.base100.r,p.base100.g,p.base100.b,0.f}:blend(p.base200,base,.12f)):base;
     Color text=subtle?(soft?base:p.baseContent):content;
-    Color hover=subtle?blend(normal,base,ghost?.12f:.19f):lighten(base,.16f);
-    Color pressed=subtle?blend(normal,base,.30f):darken(base,.22f);
+    Color hover=subtle?blend(p.base100,base,ghost?.12f:.19f):blend(base,p.baseContent,.10f);
+    Color pressed=subtle?blend(p.base100,base,.30f):blend(base,p.baseContent,.19f);
     if(options.state.selected){
         normal=blend(normal,base,subtle?.23f:.10f);
         hover=blend(normal,base,.28f);
         pressed=blend(normal,base,.43f);
     }
-    Color border=options.state.selected?base:p.base300;
+    Color border=(outline||options.state.selected)?base:p.base300;
     if(options.state.invalid){
         border=p.error;
         normal=blend(p.base200,p.error,.10f);
@@ -109,7 +112,7 @@ FieldVisual field_visual(Field f){
     if(feedback==ValidationState::Error)border=accent=p.error;
     if(feedback==ValidationState::Warning)border=accent=p.warning;
     if(feedback==ValidationState::Success)border=accent=p.success;
-    Color normal=f.readOnly?blend(p.base200,p.base300,.22f):p.base200;
+    Color normal=f.readOnly?blend(p.base100,p.base300,.22f):p.base100;
     if(feedback!=ValidationState::None)normal=blend(normal,accent,.035f);
     return {normal,blend(normal,accent,.10f),blend(normal,accent,.19f),border,accent};
 }
@@ -141,7 +144,7 @@ void Badge(const char* value,Status status){
     const auto measured=ImGui::CalcTextSize(value,nullptr,false,wrap);
     const ImVec2 size{std::min(available,measured.x+pad*2),measured.y+pad};
     const auto p=ImGui::GetCursorScreenPos();ImGui::Dummy(size);auto* d=ImGui::GetWindowDrawList();
-    d->AddRectFilled(p,{p.x+size.x,p.y+size.y},detail::ink(blend(palette().base200,c,.15f)),std::min(12.f*scale(),size.y*.45f));
+    d->AddRectFilled(p,{p.x+size.x,p.y+size.y},detail::ink(blend(palette().base200,c,.15f)),std::min(palette().metrics.radiusSelector*scale(),size.y*.5f));
     d->AddText(nullptr,ImGui::GetFontSize(),{p.x+pad,p.y+pad*.5f},detail::ink(c),value,nullptr,wrap);
 }
 void Alert(const char* title,const char* message,Status status){
@@ -176,7 +179,7 @@ bool Button(const char* title,Options opt,ImVec2 size){
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,vec(p.pressed));
     ImGui::PushStyleColor(ImGuiCol_Text,{p.text.r,p.text.g,p.text.b,0});
     ImGui::PushStyleColor(ImGuiCol_Border,vec(p.border));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,p.outline?1.5f:0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,p.outline?palette().metrics.border:0.f);
     ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,locked&&!opt.state.disabled?1.f:ImGui::GetStyle().DisabledAlpha);
     ImGui::BeginDisabled(locked);
     const bool clicked=ImGui::Button(title,size)&&!locked;
@@ -313,8 +316,9 @@ bool selection_control(const char* name,bool selected,Field field,bool radio){
         d->AddCircle(center,icon*.5f,detail::ink(filled?bg:visual.border),24,1.5f*scale());
         if(filled)d->AddCircleFilled(center,icon*.25f,detail::ink(bg),20);
     }else{
-        const ImVec2 b{p.x+icon,p.y+icon};d->AddRectFilled(p,b,detail::ink(bg),4.f*scale());
-        d->AddRect(p,b,detail::ink(filled?visual.accent:visual.border),4.f*scale(),0,1.5f*scale());
+        const ImVec2 b{p.x+icon,p.y+icon};const float radius=std::min(icon*.5f,palette().metrics.radiusSelector*scale());
+        d->AddRectFilled(p,b,detail::ink(bg),radius);
+        d->AddRect(p,b,detail::ink(filled?visual.accent:visual.border),radius,0,palette().metrics.border*scale());
         const auto content=detail::ink(field.invalid||field.validation!=ValidationState::None?palette().base100:palette().primaryContent);
         if(field.indeterminate)d->AddLine({p.x+icon*.25f,p.y+icon*.5f},{p.x+icon*.75f,p.y+icon*.5f},content,2.f*scale());
         else if(selected){d->AddLine({p.x+icon*.22f,p.y+icon*.50f},{p.x+icon*.43f,p.y+icon*.72f},content,2.f*scale());
@@ -393,7 +397,7 @@ bool BeginModal(const char* id,bool* open){
 }
 void EndModal(){ImGui::EndPopup();}
 bool BeginCard(const char* id,float height){
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,vec(palette().base200));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,vec(palette().base100));
     ImGui::PushStyleColor(ImGuiCol_Border,vec(palette().base300));
     ImGuiChildFlags flags=ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened;
     if(height<=0.f)flags|=ImGuiChildFlags_AutoResizeY;
