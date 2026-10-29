@@ -90,6 +90,9 @@ try{
     // Saturated page boundary has visible elastic feedback but clamped scroll.
     if(name==='desktop'){
       await page.mouse.move(width*.5,height*.7);
+      // Nested article scroll must be at its real top before overscroll starts.
+      await page.mouse.wheel(0,-8000);
+      await page.waitForTimeout(720);
       await page.mouse.wheel(0,-500);
       await page.waitForFunction(()=>Math.abs(window.__imguiScrollDebug?.elasticY||0)>.5);
       const bounce=await page.evaluate(()=>window.__imguiScrollDebug.elasticY);

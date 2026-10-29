@@ -406,7 +406,10 @@ void app::draw(){
 #ifdef __EMSCRIPTEN__
     browser_input_frame();
 #endif
-    if(pageChanged)ImGui::SetNextWindowScroll({0,0});
+    if(pageChanged){
+        ImGui::SetNextWindowScroll({0,0});
+        if(d.page==9)gallery::reset_view_scroll();
+    }
     ImGui::BeginChild("##gallery-content",{0,0},ImGuiChildFlags_NavFlattened);
     // The background stays fixed; only content vertices get a brief elastic
     // translation when a pixel/touch gesture exceeds a real scroll boundary.

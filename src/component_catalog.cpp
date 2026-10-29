@@ -196,6 +196,7 @@ void sample(int i){
 int chosen=0;
 bool changedSelection=false;
 bool inspectRequested=false;
+bool resetArticleScroll=false;
 const char* code_example(int i){
     switch(i){
     case 0:return "ui::Button(\"Speichern\", ui::Variant::Primary);";
@@ -454,12 +455,15 @@ void draw_details(){
     ImGui::PopID();
 }
 } // namespace
+void reset_view_scroll(){resetArticleScroll=true;}
 bool draw_index(int* outIndex){
     if(!outIndex)return false;
     changedSelection=false;
     inspectRequested=false;
     const float s=ui::scale();
     const bool desktop=ImGui::GetContentRegionAvail().x>=680.f*s;
+    const bool resetScroll=resetArticleScroll;
+    resetArticleScroll=false;
     ImGui::PushID("component-documentation");
     if(desktop){
         const float navWidth=235.f*s;
@@ -470,7 +474,7 @@ bool draw_index(int* outIndex){
         ui::scroll::apply();
         ImGui::EndChild();ImGui::PopStyleColor();
         ImGui::SameLine(0,18.f*s);
-        if(changedSelection)ImGui::SetNextWindowScroll({0,0});
+        if(changedSelection||resetScroll)ImGui::SetNextWindowScroll({0,0});
         ImGui::BeginChild("##docs-article",{0,0},ImGuiChildFlags_None);
         draw_details();
         ui::scroll::apply();
@@ -478,7 +482,7 @@ bool draw_index(int* outIndex){
     }else{
         draw_mobile_picker();
         ImGui::Dummy({0,7.f*s});
-        if(changedSelection)ImGui::SetScrollY(0);
+        if(changedSelection||resetScroll)ImGui::SetScrollY(0);
         draw_details();
     }
 #ifdef __EMSCRIPTEN__
