@@ -31,10 +31,27 @@ try{
       await clickItem(page,910,false);
       await page.waitForTimeout(150);
       // Card action must open the real state inspector, not a mock page.
-      await clickItem(page,900,false);
+      await clickItem(page,918,false); // Accordion is first in the alphabetical catalogue
       await page.waitForFunction(()=>window.__imguiUIState?.page===8);
       await clickItem(page,0,false);
       await page.waitForFunction(()=>window.__imguiUIState?.page===9);
+    }
+    // Search/category buttons remain real native controls, not decorative tabs.
+    // Scroll into the catalogue and capture a screenshot with nested previews.
+    if(name==='desktop'||name==='mobile'){
+      await page.mouse.move(width*.55,height*.7);
+      await page.mouse.wheel(0,480);
+      await page.waitForTimeout(220);
+      await page.screenshot({path:`visual-review/${name}-catalog-scrolled.png`});
+      // Return to top before testing the elastic boundary or category switch.
+      await page.mouse.wheel(0,-1600);
+      await page.waitForTimeout(250);
+    }
+    if(name==='desktop'){
+      await clickItem(page,945,false); // feedback category
+      await page.waitForTimeout(160);
+      await page.screenshot({path:'visual-review/desktop-catalog-filtered.png'});
+      await clickItem(page,940,false); // all categories again
     }
     // Saturated page boundary has visible elastic feedback but clamped scroll.
     if(name==='desktop'){

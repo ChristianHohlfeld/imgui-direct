@@ -11,6 +11,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <numeric>
 #ifdef __EMSCRIPTEN__
 extern "C" void browser_qa_item(int,float,float,float,float);
 #endif
@@ -18,6 +19,62 @@ extern "C" void browser_qa_item(int,float,float,float,float);
 namespace gallery {
 namespace {
 constexpr const char* groups[]={"Aktionen","Eingaben","Navigation","Layout","Feedback"};
+constexpr const char* descriptions[] = {
+    "Aktionen auslösen und Varianten vergleichen.",
+    "Text eingeben, ändern und validieren.",
+    "Mehrzeilige Texte direkt bearbeiten.",
+    "Eine Option aus mehreren wählen.",
+    "Eine unabhängige Auswahl umschalten.",
+    "Genau eine Auswahl treffen.",
+    "Zustände direkt ein- oder ausschalten.",
+    "Werte stufenlos einstellen.",
+    "Dezimalwerte präzise bearbeiten.",
+    "Ganze Zahlen mit Schritten anpassen.",
+    "Räumliche X-, Y- und Z-Werte eingeben.",
+    "Farben und Alphawerte bearbeiten.",
+    "Einen zusammenhängenden Bereich wählen.",
+    "Dateien für die Anwendung auswählen.",
+    "Ansichten in Reitern wechseln.",
+    "Zwischen Bereichen navigieren.",
+    "Den aktuellen Pfad nachvollziehen.",
+    "Durch mehrere Ergebnisseiten blättern.",
+    "Inhalt gezielt ein- und ausklappen.",
+    "Zusätzliche Informationen aufklappen.",
+    "Kontextaktionen aufrufen.",
+    "Befehle in einem Menü wählen.",
+    "Aktionen zum Objekt anbieten.",
+    "Dialoge mit Fokussteuerung öffnen.",
+    "Informationen als Karte gruppieren.",
+    "Einstellungen logisch zusammenfassen.",
+    "Daten in Spalten übersichtlich zeigen.",
+    "Hierarchien ein- und ausklappen.",
+    "Elemente in einer Liste ordnen.",
+    "Flächen flexibel aufteilen.",
+    "Kurze Statusmarkierungen darstellen.",
+    "Wichtige Rückmeldungen hervorheben.",
+    "Fortschritt als Balken darstellen.",
+    "Fortschritt im Kreis ablesen.",
+    "Laufende Vorgänge animiert anzeigen.",
+    "Platzhalter während des Ladens zeigen.",
+    "Kennzahlen und Trends hervorheben.",
+    "Einen Zustand auf einen Blick erkennen.",
+    "Mehrstufige Abläufe visualisieren.",
+    "Ereignisse zeitlich anordnen.",
+    "Personen oder Objekte repräsentieren.",
+    "Tastenkürzel klar kennzeichnen.",
+    "Hinweise bei Bedarf einblenden.",
+    "Bedienelemente eindeutig benennen.",
+    "Fehler und Erfolge verständlich melden.",
+    "Inhalte optisch voneinander trennen.",
+    "Hierarchische Überschriften nutzen.",
+    "Informationen dezent hervorheben.",
+    "Navigation als echten Link anbieten.",
+    "Bewertungen direkt mit Sternen wählen.",
+    "Verbundene Optionen gemeinsam wählen.",
+    "Nachrichten als Sprechblasen zeigen."
+};
+static_assert(std::size(descriptions)==52);
+
 char search[128]="";
 int activeGroup=-1;
 int group_of(int i) {
@@ -110,132 +167,180 @@ void sample(int i){
     case 51:ui::ChatBubble("Hallo, Welt!",true,ui::Tone::Primary);break;
     }
 }
+
+constexpr float previewHeight=142.f;
+constexpr float tileHeight=238.f;
+bool is_short_preview(int i){
+    switch(i){
+    case 0:case 4:case 5:case 6:case 16:case 17:
+    case 19:case 21:case 30:case 32:case 33:case 34:
+    case 37:case 40:case 41:case 42:case 43:case 44:
+    case 45:case 47:case 48:case 49:case 50:
+        return true;
+    default:return false;
+    }
+}
+void mark_catalog_item(int id){
+#ifdef __EMSCRIPTEN__
+    const ImVec2 a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+    browser_qa_item(id,a.x,a.y,b.x-a.x,b.y-a.y);
+#else
+    (void)id;
+#endif
+}
 bool tile(int index){
     const auto& meta=review::component(index);
     const auto& pal=ui::palette();
-    const float s=ui::scale(),radius=pal.metrics.radiusBox*s;
-    const ImVec4 surface{pal.base100.r,pal.base100.g,pal.base100.b,1};
-    const ImVec4 previewSurface{pal.base200.r,pal.base200.g,pal.base200.b,1};
-    const ImVec4 border{pal.base300.r,pal.base300.g,pal.base300.b,1};
+    const float s=ui::scale();
+    const float radius=std::max(8.f,pal.metrics.radiusBox)*s;
+    // Exactly one hierarchy: preview surface -> title -> short explanation ->
+    // direct route to the full interactive state inspector. No decorative
+    // card-within-card frame, invisible overlays, or duplicate action footer.
     ImGui::PushID(index);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,radius);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{14.f*s,12.f*s});
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,surface);
-    ImGui::PushStyleColor(ImGuiCol_Border,border);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{0,0});
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,{pal.base100.r,pal.base100.g,pal.base100.b,1});
     bool opened=false;
-    // A real preview is separate from the card's navigation action.
-    // Native controls inside this preview remain clickable and keyboard-ready.
-    if(ImGui::BeginChild("##tile",{0,226.f*s},ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened,
+    if(ImGui::BeginChild("##tile",{0,tileHeight*s},ImGuiChildFlags_None,
                          ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
-        ImGui::TextUnformatted(meta.name);
-        ImGui::SameLine();
-        ImGui::TextDisabled("%02d",index+1);
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,pal.metrics.radiusField*s);
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,radius);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{12.f*s,10.f*s});
-        ImGui::PushStyleColor(ImGuiCol_ChildBg,previewSurface);
-        if(ImGui::BeginChild("##preview",{0,125.f*s},0,
+        ImGui::PushStyleColor(ImGuiCol_ChildBg,{pal.base200.r,pal.base200.g,pal.base200.b,1});
+        if(ImGui::BeginChild("##preview",{0,previewHeight*s},ImGuiChildFlags_None,
                             ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
+            if(is_short_preview(index)){
+                const float available=previewHeight-20.f;
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY()
+                    +std::max(0.f,(available-ui::control_height(ui::Size::MD))*.5f));
+            }
             sample(index);
         }
         ImGui::EndChild();
         ImGui::PopStyleColor();ImGui::PopStyleVar(2);
-        ImGui::Dummy({0,3.f*s});
-        ui::Options action;action.variant=ui::Variant::Ghost;action.size=ui::Size::SM;action.fullWidth=true;
-        opened=ui::Button("Ansehen und Zustände",action);
-#ifdef __EMSCRIPTEN__
-        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
-        browser_qa_item(900+index,a.x,a.y,b.x-a.x,b.y-a.y);
-#endif
+        ImGui::Dummy({0,4.f*s});
+        ImGui::TextUnformatted(meta.name);
+        ImGui::PushStyleColor(ImGuiCol_TextDisabled,
+            {pal.baseContent.r,pal.baseContent.g,pal.baseContent.b,.64f});
+        ImGui::TextUnformatted(descriptions[index]);
+        ImGui::PopStyleColor();
+        opened=ui::Link("Zustände ansehen");
+        mark_catalog_item(900+index);
     }
     ImGui::EndChild();
-    ImGui::PopStyleColor(2);ImGui::PopStyleVar(2);ImGui::PopID();
+    ImGui::PopStyleColor();ImGui::PopStyleVar(2);ImGui::PopID();
     return opened;
 }
 int filter=0;
+int group_count(int group){
+    int count=0;
+    for(int i=0;i<review::count();++i)
+        if(group<0||group_of(i)==group)++count;
+    return count;
+}
 void filter_buttons(bool vertical,float width){
-    const char* options[]={"Alle","Aktionen","Eingaben","Navigation","Layout","Feedback"};
+    const char* labels[]={"Alle","Aktionen","Eingaben","Navigation","Layout","Feedback"};
     const float s=ui::scale();
-    const float btnWidth=vertical?width:std::max(1.f,(width-2.f*6.f*s)/3.f);
-    ImGui::PushID("catalog-filters");
+    // Two compact rows on narrow screens; a genuine category sidebar on desktop.
+    ImGui::PushID("catalog-filter");
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{4.f*s,4.f*s});
+    const float buttonWidth=vertical?width:std::max(1.f,(width-8.f*s)/3.f);
     for(int i=0;i<6;++i){
         if(!vertical&&i%3)ImGui::SameLine();
         ImGui::PushID(i);
-        ui::Options b;b.size=ui::Size::SM;b.variant=filter==i?ui::Variant::Soft:ui::Variant::Ghost;
+        ui::Options b;
+        b.size=ui::Size::SM;
+        b.variant=filter==i?ui::Variant::Soft:ui::Variant::Ghost;
         b.state.selected=filter==i;
-        if(ui::Button(options[i],b,{btnWidth,0}))filter=i;
+        if(ui::Button(labels[i],b,{buttonWidth,0}))filter=i;
+        mark_catalog_item(940+i);
         ImGui::PopID();
     }
+    ImGui::PopStyleVar();
     ImGui::PopID();
 }
-bool draw_groups(int* outIndex){
+bool matches_component(int i){
+    const auto& component=review::component(i);
+    return (filter==0||group_of(i)==filter-1)
+        &&(matches(component.name,search)||matches(descriptions[i],search));
+}
+bool draw_grid(int* outIndex){
     const int count=review::count();
-    const int active=filter-1;
-    int matchesCount=0;
-    for(int i=0;i<count;++i)
-        if((active<0||active==group_of(i))&&matches(review::component(i).name,search))
-            ++matchesCount;
-    ImGui::TextDisabled("%d / %d Komponenten",matchesCount,count);
-    if(!matchesCount){
-        ImGui::Dummy({0,20.f*ui::scale()});
-        ui::Muted("Keine Treffer. Anderen Suchbegriff oder Kategorie wählen.");
+    std::array<int,52> indices{};
+    int shown=0;
+    for(int i=0;i<count;++i)if(matches_component(i))indices[shown++]=i;
+    std::sort(indices.begin(),indices.begin()+shown,[](int a,int b){
+        return std::strcmp(review::component(a).name,review::component(b).name)<0;
+    });
+    const float s=ui::scale(),width=ImGui::GetContentRegionAvail().x;
+    ImGui::TextDisabled("%d von %d Komponenten",shown,count);
+    if(!shown){
+        ImGui::Dummy({0,14.f*s});
+        ui::Muted("Keine Treffer. Suche oder Kategorie ändern.");
         return false;
     }
-    const float width=ImGui::GetContentRegionAvail().x;
-    const int cols=width<540.f*ui::scale()?1:width<850.f*ui::scale()?2:3;
-    const ImGuiTableFlags flags=ImGuiTableFlags_SizingStretchSame|ImGuiTableFlags_NoSavedSettings;
-    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding,{5.f*ui::scale(),6.f*ui::scale()});
-    for(int group=0;group<5;++group){
-        if(active>=0&&active!=group)continue;
-        int groupCount=0;
-        for(int i=0;i<count;++i)
-            if(group_of(i)==group&&matches(review::component(i).name,search))++groupCount;
-        if(!groupCount)continue;
-        ImGui::SeparatorText(groups[group]);
-        ImGui::PushID(group);
-        if(ImGui::BeginTable("##catalog",cols,flags)){
-            for(int i=0;i<count;++i){
-                if(group_of(i)!=group||!matches(review::component(i).name,search))continue;
-                ImGui::TableNextColumn();
-                if(tile(i)){
-                    *outIndex=i;
-                    ImGui::EndTable();ImGui::PopID();ImGui::PopStyleVar();
-                    return true;
+    const int cols=width<510.f*s?1:width<780.f*s?2:3;
+    const float padding=7.f*s;
+    const ImGuiTableFlags flags=ImGuiTableFlags_SizingStretchSame
+                              |ImGuiTableFlags_NoSavedSettings;
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding,{padding,padding});
+    if(ImGui::BeginTable("##components-grid",cols,flags)){
+        const int rows=(shown+cols-1)/cols;
+        // ImGuiListClipper visits only on-screen rows: no 52 child windows and
+        // expensive previews rebuilt every frame while scrolling the catalog.
+        ImGuiListClipper clipper;
+        clipper.Begin(rows,tileHeight*s+2.f*padding);
+        while(clipper.Step()){
+            for(int row=clipper.DisplayStart;row<clipper.DisplayEnd;++row){
+                ImGui::TableNextRow(ImGuiTableRowFlags_None,tileHeight*s);
+                for(int col=0;col<cols;++col){
+                    ImGui::TableSetColumnIndex(col);
+                    const int cell=row*cols+col;
+                    if(cell>=shown)continue;
+                    if(tile(indices[cell])){
+                        *outIndex=indices[cell];
+                        clipper.End();
+                        ImGui::EndTable();ImGui::PopStyleVar();
+                        return true;
+                    }
                 }
             }
-            ImGui::EndTable();
         }
-        ImGui::PopID();
+        ImGui::EndTable();
     }
     ImGui::PopStyleVar();
     return false;
 }
 } // namespace
+
 bool draw_index(int* outIndex){
     if(!outIndex)return false;
     const float s=ui::scale(),width=ImGui::GetContentRegionAvail().x;
-    // Docs-like browse-first layout: compact search above responsive
-    // category navigation, with live previews in real native cards.
     ImGui::PushID("component-index");
-    ui::Input("Komponente suchen",search,sizeof(search),"z. B. Button, Input, Tabs ...");
-    ImGui::Dummy({0,4.f*s});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{8.f*s,7.f*s});
+    // A single search control, without a second oversized form label.
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputTextWithHint("##catalog-search","Komponente suchen ...",search,sizeof(search));
+    ImGui::Dummy({0,3.f*s});
     bool opened=false;
     if(width>=850.f*s){
-        if(ImGui::BeginTable("##browser",2,ImGuiTableFlags_SizingFixedFit|ImGuiTableFlags_NoSavedSettings)){
-            ImGui::TableSetupColumn("Kategorien",ImGuiTableColumnFlags_WidthFixed,162.f*s);
-            ImGui::TableSetupColumn("Vorschauen",ImGuiTableColumnFlags_WidthStretch);
+        if(ImGui::BeginTable("##browser",2,
+             ImGuiTableFlags_SizingFixedFit|ImGuiTableFlags_NoSavedSettings)){
+            ImGui::TableSetupColumn("Kategorien",ImGuiTableColumnFlags_WidthFixed,160.f*s);
+            ImGui::TableSetupColumn("Vorschau",ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextDisabled("KATEGORIEN");
             filter_buttons(true,std::max(1.f,ImGui::GetContentRegionAvail().x));
             ImGui::TableNextColumn();
-            opened=draw_groups(outIndex);
+            opened=draw_grid(outIndex);
             ImGui::EndTable();
         }
     }else{
         filter_buttons(false,width);
-        ImGui::Dummy({0,5.f*s});
-        opened=draw_groups(outIndex);
+        ImGui::Dummy({0,4.f*s});
+        opened=draw_grid(outIndex);
     }
+    ImGui::PopStyleVar();
     ImGui::PopID();
     return opened;
 }
