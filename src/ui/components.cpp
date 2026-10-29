@@ -51,8 +51,8 @@ Paint paint(Options options){
     // pressed state. Differentiate them in the same semantic color scale.
     Color normal=subtle?(ghost||outline?Color{p.base100.r,p.base100.g,p.base100.b,0.f}:blend(p.base200,base,.12f)):base;
     Color text=subtle?(soft?base:p.baseContent):content;
-    Color hover=subtle?blend(p.base100,base,ghost?.12f:.19f):blend(base,p.baseContent,.10f);
-    Color pressed=subtle?blend(p.base100,base,.30f):blend(base,p.baseContent,.19f);
+    Color hover=subtle?blend(p.base100,base,ghost?.12f:.19f):lighten(base,.16f);
+    Color pressed=subtle?blend(p.base100,base,.30f):darken(base,.22f);
     if(options.state.selected){
         normal=blend(normal,base,subtle?.23f:.10f);
         hover=blend(normal,base,.28f);
