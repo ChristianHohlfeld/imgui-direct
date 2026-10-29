@@ -416,6 +416,12 @@ void button_example(ExampleKind kind){
             }
             ui::Options options;options.variant=ui::Variant::Neutral;options.size=sizes[n];
             ui::Button(labels[n],options);
+#ifdef __EMSCRIPTEN__
+            if(n==4){
+                const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+                browser_qa_item(1710,a.x,a.y,b.x-a.x,b.y-a.y);
+            }
+#endif
             ImGui::PopID();
         }
     }else if(kind==ExampleKind::Responsive){
@@ -520,7 +526,10 @@ void example_block(const ExampleDoc& doc,int i){
     ImGui::PopStyleColor(2);
     ImGui::PopStyleVar();
     const int mode=state->GetInt(tabKey,0);
-    const float height=(doc.kind==ExampleKind::Colors?195.f:
+    const bool wrappedSizes=i==0&&doc.kind==ExampleKind::Sizes&&
+        ImGui::GetContentRegionAvail().x<650.f*s;
+    // Five size buttons can wrap on phones. Never clip the second row.
+    const float height=(wrappedSizes?225.f:doc.kind==ExampleKind::Colors?195.f:
                         doc.kind==ExampleKind::State?230.f:154.f)*s;
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,p.metrics.radiusBox*s);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{22.f*s,18.f*s});
@@ -557,7 +566,7 @@ void example_block(const ExampleDoc& doc,int i){
                     doc.kind==ExampleKind::Outline||doc.kind==ExampleKind::Soft||
                     doc.kind==ExampleKind::Responsive||doc.kind==ExampleKind::Loading||
                     doc.kind==ExampleKind::Sizes;
-                const float contentHeight=small?58.f*s:92.f*s;
+                const float contentHeight=small?(wrappedSizes?132.f:58.f)*s:92.f*s;
                 const float free=ImGui::GetContentRegionAvail().y-contentHeight;
                 if(free>0)ImGui::SetCursorPosY(ImGui::GetCursorPosY()+free*.5f);
                 // Do not center the first button only: center the full group.
@@ -581,6 +590,12 @@ void example_block(const ExampleDoc& doc,int i){
         }
     }
     ImGui::EndChild();
+#ifdef __EMSCRIPTEN__
+    if(i==0&&doc.kind==ExampleKind::Sizes){
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        browser_qa_item(1711,a.x,a.y,b.x-a.x,b.y-a.y);
+    }
+#endif
     ImGui::PopStyleColor(2);ImGui::PopStyleVar(2);
     ImGui::PopID();
 }

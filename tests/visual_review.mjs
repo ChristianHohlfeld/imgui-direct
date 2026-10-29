@@ -43,6 +43,15 @@ try{
       await page.screenshot({path:'visual-review/desktop-docs-button.png'});
     }
     if(name==='mobile'){
+      // A wrapped fifth size button must remain entirely inside its preview
+      // stage, not disappear behind the next example on narrow screens.
+      const bounds=await page.evaluate(()=>({
+        fifth:window.__imguiItems?.[1710],stage:window.__imguiItems?.[1711]
+      }));
+      assert(bounds.fifth&&bounds.stage,'Native size preview geometry must be reported');
+      assert(bounds.fifth.y>=bounds.stage.y&&
+             bounds.fifth.y+bounds.fifth.h<=bounds.stage.y+bounds.stage.h-2,
+        'Xlarge wrapped button must fit entirely inside the mobile preview: '+JSON.stringify(bounds));
       // The gallery search is a REAL mobile-editable C++ field. Touch must
       // focus the shared native IME bridge; filtering must update the gallery.
       const field=await page.evaluate(()=>window.__imguiInputRegions?.[0]);
