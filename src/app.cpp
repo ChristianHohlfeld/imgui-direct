@@ -42,15 +42,22 @@ bool gallery_navigation(){
     bool changed=false;
     if(d.page==8||d.page==9){
         ui::Options nav;nav.variant=ui::Variant::Ghost;nav.size=ui::Size::SM;
-        if(ui::Button(d.page==8?"Zur Komponentenübersicht":"Beispiele anzeigen",nav)){
+        if(ui::Button(d.page==8?"Alle Komponenten":"Beispiele",nav)){
             d.page=d.page==8?9:0;changed=true;
         }
         mark(0);
         ImGui::SameLine();
-        if(ui::Button(d.page==8?"Beispiele":"Zustandsprüfung",nav)){
+        if(ui::Button(d.page==8?"Beispiele":"Zustände testen",nav)){
             d.page=d.page==8?0:8;changed=true;
         }
         mark(8);
+        if(d.page==9){
+            ImGui::SameLine();
+            const bool dark=ui::mode()==ui::Mode::Dark;
+            if(ui::Button(dark?"Hell":"Dunkel",ui::Variant::Outline))
+                ui::set_mode(dark?ui::Mode::Light:ui::Mode::Dark);
+            mark(910);
+        }
         return changed;
     }
     static const char* names[]={"Buttons","Eingabe","Design","Liste","Menüs","Daten","Editor","Layout"};
@@ -391,10 +398,11 @@ void app::draw(){
         ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings);
     ui::Title("Komponenten");
-    ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
-    space(8);
+    if(d.page==9)ui::Muted("52 native C++-Komponenten. Live ansehen und direkt ausprobieren.");
+    else ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
+    space(d.page==9?3.f:8.f);
     const bool pageChanged=gallery_navigation();
-    space(9);
+    space(d.page==9?3.f:9.f);
 #ifdef __EMSCRIPTEN__
     browser_input_frame();
 #endif

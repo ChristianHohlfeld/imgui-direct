@@ -18,6 +18,24 @@ try{
     const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
     const response=await page.goto(url,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);
     await page.waitForFunction(()=>window.__imguiItems?.[8]&&document.getElementById('status').textContent==='');
+    // The actual first page is the browseable component catalogue.
+    // Capture the real rendered canvas BEFORE the legacy example categories.
+    assert.equal(await page.evaluate(()=>window.__imguiUIState?.page),9);
+    await page.waitForTimeout(250);
+    if(name==='desktop'||name==='mobile'||name==='ipad')
+      await page.screenshot({path:`visual-review/${name}-catalog-light.png`});
+    if(name==='desktop'){
+      await clickItem(page,910,false);
+      await page.waitForTimeout(150);
+      await page.screenshot({path:'visual-review/desktop-catalog-dark.png'});
+      await clickItem(page,910,false);
+      await page.waitForTimeout(150);
+      // Card action must open the real state inspector, not a mock page.
+      await clickItem(page,900,false);
+      await page.waitForFunction(()=>window.__imguiUIState?.page===8);
+      await clickItem(page,0,false);
+      await page.waitForFunction(()=>window.__imguiUIState?.page===9);
+    }
     // Saturated page boundary has visible elastic feedback but clamped scroll.
     if(name==='desktop'){
       await page.mouse.move(width*.5,height*.7);
