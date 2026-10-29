@@ -105,3 +105,12 @@ component sources, with stable C++ API and normal ImGui input processing.
 Text, native shadow rendering and sRGB color conversion cannot be
 pixel-identical to a DOM/CSS implementation; visual QA therefore checks
 native usability as well as the approximate style, not manufactured CSS pixels.
+
+## Browse-first 52 component demo
+
+The WASM application opens on a native visual **component catalogue**:
+responsive 1/2/3-column live previews, five grouped categories, a name
+search, and a direct **Ansehen / Zustände** link per item to the comprehensive
+52-family state inspector. Existing eight sample galleries and direct
+`gallery_review` QA routes remain available and unaffected. Previews are
+real Dear ImGui controls, not static CSS/HTML copies.

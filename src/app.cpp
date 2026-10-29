@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "state_gallery.hpp"
+#include "component_catalog.hpp"
 #include "ui/components.hpp"
 #include "ui/extended.hpp"
 #include "ui/essentials.hpp"
@@ -21,7 +22,7 @@ extern "C" void browser_qa_catalog(int,const char*,unsigned,int);
 
 namespace {
 struct Demo {
-    int page=8, choice=0, plan=1, clicks=0, listSelected=-1;
+    int page=9, choice=0, plan=1, clicks=0, listSelected=-1;
     bool dark=false, notify=true, agreed=true, invalid=false, modal=false;
     float volume=.65f, progress=.72f;
     char name[128]="Alex Morgan";
@@ -39,9 +40,17 @@ void mark([[maybe_unused]] int id){
 }
 bool gallery_navigation(){
     bool changed=false;
-    if(d.page==8){
-        ui::Options examples;examples.variant=ui::Variant::Ghost;examples.size=ui::Size::SM;
-        if(ui::Button("Beispiele anzeigen",examples)){d.page=0;changed=true;}mark(0);mark(8);
+    if(d.page==8||d.page==9){
+        ui::Options nav;nav.variant=ui::Variant::Ghost;nav.size=ui::Size::SM;
+        if(ui::Button(d.page==8?"Zur Komponentenübersicht":"Beispiele anzeigen",nav)){
+            d.page=d.page==8?9:0;changed=true;
+        }
+        mark(0);
+        ImGui::SameLine();
+        if(ui::Button(d.page==8?"Beispiele":"Zustandsprüfung",nav)){
+            d.page=d.page==8?0:8;changed=true;
+        }
+        mark(8);
         return changed;
     }
     static const char* names[]={"Buttons","Eingabe","Design","Liste","Menüs","Daten","Editor","Layout"};
@@ -56,7 +65,9 @@ bool gallery_navigation(){
     }
     ImGui::PopStyleVar();
     ui::Options all;all.variant=ui::Variant::Outline;all.fullWidth=true;all.size=ui::Size::SM;all.state.selected=d.page==8;
-    if(ui::Button("Alle Komponenten · Zustandsprüfung",all)){changed=d.page!=8;d.page=8;}mark(8);
+    if(ui::Button("Alle Komponenten · Galerie",all)){changed=d.page!=9;d.page=9;}mark(9);
+    ui::Options audit; audit.variant=ui::Variant::Ghost;audit.size=ui::Size::SM;
+    if(ui::Button("Zustandsprüfung",audit)){changed=d.page!=8;d.page=8;}mark(8);
     return changed;
 }
 
@@ -413,7 +424,11 @@ void app::draw(){
     else if(d.page==5)data_demo();
     else if(d.page==6)editor_demo();
     else if(d.page==7)layout_demo();
-    else review::draw();
+    else if(d.page==8)review::draw();
+    else {
+        int open=-1;
+        if(gallery::draw_index(&open)){review::select(open,review::State::Normal);d.page=8;ImGui::SetNextWindowScroll({0,0});}
+    }
     if(d.modal){ui::OpenModal("Bestätigung");d.modal=false;}
     if(ui::BeginModal("Bestätigung")){
         ui::Heading("Alles erledigt");

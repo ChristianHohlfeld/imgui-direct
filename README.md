@@ -97,3 +97,5 @@ permission flows require device testing; builds alone cannot certify that.
 - Android: `cmake -S . -B build-android -G Ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=26 && cmake --build build-android`. The result is a native `.so`; building/installing a signed APK requires Android SDK packaging.
 
 **Limitations:** Linux X11 (not Wayland); iOS/Android have not been manually device-tested; complex IME composition and web context restoration warrant follow-up QA. Browser uses Emscripten-generated JavaScript boot code, not a separate HTML UI.
+
+The public WASM component gallery is browse-first: live C++ component cards, category filters, search, and a direct link from every card to the complete state inspector. No CSS/DOM component replicas are used.

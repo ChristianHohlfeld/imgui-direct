@@ -108,7 +108,7 @@ elseif(UNIX)
 else()
   message(FATAL_ERROR "Unsupported platform")
 endif()
-target_sources(imgui_direct PRIVATE src/state_gallery.cpp)
+target_sources(imgui_direct PRIVATE src/state_gallery.cpp src/component_catalog.cpp)
 target_link_libraries(imgui_direct PRIVATE ui_foundation)
 target_include_directories(imgui_direct PRIVATE src)
 
