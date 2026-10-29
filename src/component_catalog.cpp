@@ -407,7 +407,12 @@ void button_example(ExampleKind kind){
         constexpr const char* labels[]={"Xsmall","Small","Medium","Large","Xlarge"};
         for(int n=0;n<5;++n){
             ImGui::PushID(n);
-            if(n>0)ImGui::SameLine();
+            if(n){
+                const float next=ImGui::CalcTextSize(labels[n]).x+45.f*s;
+                const float right=ImGui::GetWindowPos().x+ImGui::GetWindowContentRegionMax().x;
+                if(ImGui::GetItemRectMax().x+ImGui::GetStyle().ItemSpacing.x+next<right)
+                    ImGui::SameLine();
+            }
             ui::Options options;options.variant=ui::Variant::Neutral;options.size=sizes[n];
             ui::Button(labels[n],options);
             ImGui::PopID();
@@ -423,8 +428,12 @@ void button_example(ExampleKind kind){
             ui::Variant::Accent,ui::Variant::Info,ui::Variant::Success,ui::Variant::Warning,ui::Variant::Error};
         for(int n=0;n<8;++n){
             ImGui::PushID(n);
-            if(n&&ImGui::GetCursorPosX()+ImGui::CalcTextSize(labels[n]).x+105.f*s
-                   <ImGui::GetWindowContentRegionMax().x)ImGui::SameLine();
+            if(n){
+                const float next=ImGui::CalcTextSize(labels[n]).x+43.f*s;
+                const float right=ImGui::GetWindowPos().x+ImGui::GetWindowContentRegionMax().x;
+                if(ImGui::GetItemRectMax().x+ImGui::GetStyle().ItemSpacing.x+next<right)
+                    ImGui::SameLine();
+            }
             ui::Button(labels[n],variants[n]);
             ImGui::PopID();
         }
@@ -488,6 +497,10 @@ void example_block(const ExampleDoc& doc,int i){
     ImGuiStorage* state=ImGui::GetStateStorage();
     const int current=state->GetInt(tabKey,0);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{0,0});
+    ImGui::PushStyleColor(ImGuiCol_Header,
+        {p.base100.r,p.base100.g,p.base100.b,1.f});
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered,
+        {p.base200.r,p.base200.g,p.base200.b,1.f});
     if(ImGui::Selectable("Preview##tab",current==0,0,{100.f*s,34.f*s}))state->SetInt(tabKey,0);
 #ifdef __EMSCRIPTEN__
     if(i==0&&doc.kind==ExampleKind::Sizes){
@@ -503,6 +516,7 @@ void example_block(const ExampleDoc& doc,int i){
         browser_qa_item(1700,a.x,a.y,b.x-a.x,b.y-a.y);
     }
 #endif
+    ImGui::PopStyleColor(2);
     ImGui::PopStyleVar();
     const int mode=state->GetInt(tabKey,0);
     const float height=(doc.kind==ExampleKind::Colors?195.f:

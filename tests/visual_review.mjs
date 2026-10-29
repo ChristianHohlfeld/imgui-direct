@@ -79,15 +79,17 @@ try{
       await page.screenshot({path:'visual-review/desktop-catalog-dark.png'});
       await clickItem(page,910,false);
       await page.waitForTimeout(150);
-      // Card action must remain visible and clickable even when the
-      // description wraps and the gallery has been scrolled.
-      // Inspect button is below the examples; scroll there intentionally.
+      // Docs contain a variable number of genuine examples. Find the
+      // inspector action using native bounds, not a brittle scroll distance.
       await page.mouse.move(width*.67,height*.7);
-      await page.mouse.wheel(0,1900);
-      await page.waitForFunction(()=>{
-        const r=window.__imguiItems?.[900];
-        return r&&r.y>140&&r.y<950&&r.h>5;
-      });
+      let inspectorVisible=false;
+      for(let attempt=0;attempt<18;++attempt){
+        const r=await page.evaluate(()=>window.__imguiItems?.[900]);
+        if(r&&r.y>135&&r.y<height-45&&r.h>5){inspectorVisible=true;break;}
+        await page.mouse.wheel(0,450);
+        await page.waitForTimeout(90);
+      }
+      assert(inspectorVisible,'Inspector must be reachable after all example sections');
       await clickItem(page,900,false);
       await page.waitForFunction(()=>window.__imguiUIState?.page===8);
       await clickItem(page,0,false);
