@@ -9,6 +9,27 @@ namespace ui {
 enum class Variant { Primary, Secondary, Neutral, Outline, Ghost, Error, Success, Warning, Info, Soft };
 enum class Status { Info, Success, Warning, Error };
 enum class Size { XS, SM, MD, LG, XL };
+// Independent semantic tone and surface roles; match daisyUI's
+// solid / soft / outline components without a CSS or styling engine.
+enum class Tone { Base, Primary, Secondary, Accent, Neutral, Info, Success, Warning, Error };
+enum class Surface { Solid, Soft, Outline };
+struct BadgeOptions {
+    Tone tone=Tone::Base;
+    Surface surface=Surface::Solid;
+    Size size=Size::MD;
+};
+struct AlertOptions {
+    Tone tone=Tone::Info;
+    Surface surface=Surface::Solid;
+};
+struct CardOptions {
+    Size size=Size::MD;
+    bool bordered=false; // .card is borderless; .card-border opts in.
+    float height=0.f;
+};
+Color tone_color(Tone tone);
+Color tone_content(Tone tone);
+
 
 struct State {
     bool disabled=false;
@@ -73,7 +94,9 @@ void Heading(const char* text);
 void Muted(const char* text);
 void Divider();
 void Badge(const char* text,Status status=Status::Info);
+void Badge(const char* text,BadgeOptions options);
 void Alert(const char* title,const char* message,Status status=Status::Info);
+void Alert(const char* title,const char* message,AlertOptions options);
 bool Button(const char* label,Options options,ImVec2 size={0,0});
 bool Button(const char* label,Variant variant=Variant::Primary,ImVec2 size={0,0},bool enabled=true);
 bool Tabs(const char* id,const char* const* names,int count,int* selected,Size size=Size::MD);
@@ -90,5 +113,6 @@ void OpenModal(const char* id);
 bool BeginModal(const char* id,bool* isOpen=nullptr);
 void EndModal();
 bool BeginCard(const char* id,float height=0.f);
+bool BeginCard(const char* id,CardOptions options);
 void EndCard();
 }

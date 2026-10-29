@@ -1,4 +1,5 @@
 #include "state_gallery.hpp"
+#include "ui/essentials.hpp"
 #include "ui/scroll.hpp"
 #include "imgui_internal.h"
 #include <algorithm>
@@ -40,7 +41,11 @@ constexpr Component components[]={
  {"TimelineItem",normal|feedback|longText,false},{"Avatar",normal|empty|longText,false},
  {"Kbd",normal|longText,false},{"Tooltip",normal|disabled|longText,true},
  {"Label",normal|bit(S::Required)|longText,false},{"Validation",normal|feedback,false},
- {"Divider",normal|empty|longText,false},{"Typography",normal|longText,false},{"Toast",normal|feedback|empty|longText,true}
+ {"Divider",normal|empty|longText,false},{"Typography",normal|longText,false},{"Toast",normal|feedback|empty|longText,true},
+ {"Link",normal|disabled|bit(S::ReadOnly)|bit(S::Loading)|longText|feedback,true},
+ {"Rating",normal|selected|disabled|bit(S::ReadOnly)|bit(S::Loading)|minimum|maximum,true},
+ {"Segmented",normal|selected|disabled|bit(S::ReadOnly)|bit(S::Loading)|longText,true},
+ {"ChatBubble",normal|empty|longText|feedback,false}
 };
 constexpr const char* stateNames[]={"Normal / interaktiv","Ausgewählt / an","Deaktiviert","Schreibgeschützt","Laden",
     "Fehler","Warnung","Erfolg","Leer","Unbestimmt","Geöffnet","Geschlossen","Minimum","Maximum","Langer Inhalt","Pflichtfeld"};
@@ -212,6 +217,23 @@ void preview(){
  case 47:{if(!is(S::Empty)&&model.choice==0){toastQueue.push(is(S::LongText)?longSample:"Gespeichert",status(),ImGui::GetTime(),0);model.choice=1;}
    if(ui::Button("Benachrichtigung auslösen")){toastQueue.push(is(S::LongText)?longSample:"Gespeichert",status(),ImGui::GetTime(),4);++changesCount;}note();
    ui::Muted(is(S::Empty)?"Die Warteschlange ist leer.":"Echte Warteschlange: schließbar, nach vier Sekunden abgelaufen.");ui::Toasts("##review-toast",toastQueue,ImGui::GetTime());break;}
+ case 48:{
+   const auto tone=is(S::Error)?ui::Tone::Error:is(S::Warning)?ui::Tone::Warning:
+      is(S::Success)?ui::Tone::Success:ui::Tone::Primary;
+   note(ui::Link(is(S::LongText)?longSample:"Details öffnen",tone,f.disabled||f.readOnly||f.loading));break;}
+ case 49:{
+   if(is(S::Selected)||is(S::Maximum))model.integer=5;
+   note(ui::Rating("Bewertung",&model.integer,5,size,f.readOnly,f.disabled||f.loading));break;}
+ case 50:{
+   const char* items[]={"Auswahl","Bearbeiten","Ansicht"};
+   const char* longItems[]={"Auswahl langer Elemente","Werkzeuge und Optionen","Anwendungsansicht"};
+   ui::Options o;o.size=size;o.state.disabled=f.disabled;o.state.readOnly=f.readOnly;o.state.loading=f.loading;
+   note(ui::Segmented("Modus",is(S::LongText)?longItems:items,&model.choice,o));break;}
+ case 51:{
+   const auto tone=is(S::Error)?ui::Tone::Error:is(S::Warning)?ui::Tone::Warning:
+       is(S::Success)?ui::Tone::Success:ui::Tone::Base;
+   ui::ChatBubble(is(S::LongText)?longSample:is(S::Empty)?"":"Eine native Chat-Bubble",
+       is(S::Success),tone,"System","Gerade eben");break;}
  }
  ImGui::EndDisabled();ImGui::PopID();ImGui::PopID();
 }

@@ -43,7 +43,7 @@ try{
   const page=await browser.newPage({viewport:{width:touch?390:1100,height:1000},deviceScaleFactor:touch?2:1,isMobile:touch,hasTouch:touch});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
   await page.goto(url,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>window.__imguiReviewCatalog?.length===48&&window.__imguiReview);
+  await page.waitForFunction(()=>window.__imguiReviewCatalog?.length===52&&window.__imguiReview);
   const catalog=await page.evaluate(()=>window.__imguiReviewCatalog);manifest.catalog=catalog;
   for(const dark of [0,1])for(const c of catalog){
    for(let s=0;s<states.length;++s){

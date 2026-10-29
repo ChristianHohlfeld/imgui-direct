@@ -52,7 +52,7 @@ dependencies. One semantic `Palette` defines base, content, primary,
 secondary, neutral and feedback colors. Built-in *Slate Dark* and *Slate Light*
 can be switched live, or replaced with a custom C++ palette.
 
-The standalone `imgui_direct::ui` CMake target can be embedded without platform code or a second ImGui copy. The kit also includes menus, breadcrumbs, pagination, accordion, fieldsets, tables, tree views, virtual lists, split panes, numeric/vector/color/range controls, status, loading, skeletons and bounded toast notifications. See [the complete selection and exclusions](docs/component-coverage.md).
+The standalone `imgui_direct::ui` CMake target can be embedded without platform code or a second ImGui copy. The kit also includes menus, breadcrumbs, pagination, accordion, fieldsets, tables, tree views, virtual lists, split panes, numeric/vector/color/range controls, status, loading, skeletons and bounded toast notifications. It now also includes native joined/segmented selections, links, rating stars, and static chat bubbles. See [the complete selection and exclusions](docs/component-coverage.md).
 
 The native component kit includes buttons with focused/hover/pressed/
 selected/disabled/loading states, tabs, cards, input, textarea, select,

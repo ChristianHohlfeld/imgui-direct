@@ -18,7 +18,7 @@ the table explicitly records implementation, composition and exclusions.
 | Calendar | Deferred: date/calendar semantics are not needed for the initial game/editor core |
 | Card | `BeginCard` / `EndCard` |
 | Carousel | Excluded from core: asset grids/lists cover editor selection |
-| Chat bubble | Deferred: in-game chat layout requires actual product use and message model |
+| Chat bubble | `ChatBubble`: responsive static native chat layout; transport and message storage remain host-owned |
 | Checkbox | `Checkbox` |
 | Collapse | `Collapse`; caller owns expanded state |
 | Countdown | Compose formatted host time with text/progress; no animated numeral system |
@@ -37,10 +37,10 @@ the table explicitly records implementation, composition and exclusions.
 | Hover Gallery | Excluded: hover-only asset navigation |
 | Indicator | `StatusDot` / `Badge` composition; no arbitrary overlay API claimed |
 | Text Input | `Input`; UTF-8 buffer, readonly/disabled/required/invalid/help |
-| Join | Adjacent buttons/fields using ImGui layout; no separate retained group state |
+| Join | `Segmented`: joined native buttons with keyboard/touch interactions, selected state and narrow vertical fallback |
 | Kbd | `Kbd` shortcut display; actual shortcut binding remains host-owned |
 | Label | `Label` with required marker |
-| Link | Compose a ghost `Button` with explicit host action; no implicit OS URL launch |
+| Link | `Link`: focusable underline and hover-only underline; caller receives activation and owns navigation |
 | List | `VirtualList` fixed-height rows; caller data and selection |
 | Loading | `Loading` and button loading state |
 | Mask | Excluded: decorative shape cropping |
@@ -58,7 +58,7 @@ the table explicitly records implementation, composition and exclusions.
 | Radial progress | `RadialProgress`; non-finite and out-of-range values handled |
 | Radio | `Radio` |
 | Range slider | `Slider` and `Range` with two bounded handles |
-| Rating | Compose radio/selection when an actual product needs it; no star-animation system |
+| Rating | `Rating`: five-point stars, mouse/touch/keyboard, readonly/disabled, 0 unset, 1–10 stars |
 | Select | `Select`; clipped options, stable per-row IDs |
 | Skeleton | `Skeleton`; static, without decorative idle animation |
 | Stack | Compose groups/children using host layout; no artificial overlapping card stack |
@@ -93,3 +93,15 @@ mobile text focus, scrolling and actions, and compares canvas/render/screenshot
 pixel dimensions across desktop/mobile/tablet and fractional DPI.
 Cross-platform CI also builds Windows, Linux, macOS, iOS simulator and Android.
 CI builds are not a substitute for physical-device IME/clipboard/accessibility QA.
+
+## DaisyUI base-style milestone (2026-10-29)
+
+The native gallery now includes `Link`, `Rating`, `Segmented` (Join),
+and static `ChatBubble`, plus real daisyUI visual variants for `Badge`,
+`Alert` (solid/soft/outline), `Tabs` (underline), `Progress` (8px track)
+and `Card` (explicit .card-border and 5 sizes).
+Geometry and semantic roles are derived from the upstream daisyUI v5 CSS
+component sources, with stable C++ API and normal ImGui input processing.
+Text, native shadow rendering and sRGB color conversion cannot be
+pixel-identical to a DOM/CSS implementation; visual QA therefore checks
+native usability as well as the approximate style, not manufactured CSS pixels.

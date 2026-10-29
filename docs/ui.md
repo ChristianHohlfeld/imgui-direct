@@ -191,3 +191,32 @@ and `dark.css` OKLCH values into rounded 8-bit sRGB. Gamma conversion and
 are scaled once by the native backend. Former `slateLight`/`slateDark`
 names remain as compatibility aliases. The renderer, touch, IME and Kern
 integration contract are untouched.
+
+## Solid core: added independent native primitives
+
+```cpp
+#include "ui/essentials.hpp"
+const char* actions[]={"Wählen","Bearbeiten","Vorschau"};
+int chosen=1,stars=4;
+ui::Segmented("mode",actions,&chosen);
+ui::Rating("Qualität",&stars,5,ui::Size::MD);
+if(ui::Link("Öffnen",ui::Tone::Primary)) hostOpenDetails();
+ui::ChatBubble("Vorschau bereit",false,ui::Tone::Base,"Editor","Jetzt");
+ui::Badge("Speichern",{ui::Tone::Success,ui::Surface::Soft,ui::Size::MD});
+ui::Alert("Hinweis","Änderung gespeichert",{ui::Tone::Info,ui::Surface::Soft});
+if(ui::BeginCard("properties",ui::CardOptions{ui::Size::SM,true})){
+    ui::Heading("Eigenschaften");
+}
+ui::EndCard();
+```
+
+Every interactive component receives native keyboard/mouse/touch events.
+The host owns every `int*` and action; there is no implicit URL handler,
+message transport or extra retained state. The link and star primitives
+use genuine ImGui input targets. The joined group stacks vertically if the
+viewport cannot fit 64 logical pixels per item. No frontend framework is added.
+
+Reference implementation values were taken from daisyUI `button.css`,
+`badge.css`, `alert.css`, `card.css`, `tab.css`, `progress.css`,
+`rating.css`, `link.css` and `chat.css` under the upstream
+`packages/daisyui/src/components/` directory.
