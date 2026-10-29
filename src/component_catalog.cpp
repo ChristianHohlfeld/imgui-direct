@@ -375,11 +375,15 @@ bool draw_index(int* outIndex){
     if(!outIndex)return false;
     const float s=ui::scale(),width=ImGui::GetContentRegionAvail().x;
     ImGui::PushID("component-index");
-    // Search is a native input; all 52 examples remain native C++ controls.
+    // Use the same native field adapter as the library's other controls.
+    // A raw ImGui::InputTextWithHint renders on desktop but cannot register
+    // the editable rectangle with the browser/mobile IME bridge.
+    // The hidden ## label preserves the compact one-line catalogue search.
+    const char previousSearch[128]={0};
+    (void)previousSearch;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{12.f*s,9.f*s});
-    ImGui::SetNextItemWidth(-1);
-    const bool modified=ImGui::InputTextWithHint("##search",
-        "Komponenten suchen ...",search,sizeof(search));
+    const bool modified=ui::Input("##catalog-search",search,sizeof(search),
+        "Komponenten suchen ...");
     ImGui::PopStyleVar();
     if(modified&&width<850.f*s)ImGui::SetScrollY(0);
     ImGui::Dummy({0,5.f*s});
