@@ -49,6 +49,13 @@ int main(){
  io.AddMouseButtonEvent(0,false);frame();assert(review::changes()==1);
  io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);io.AddMousePosEvent(info.minimum.x+21,info.minimum.y+16);frame();frame();assert(!review::primary().interaction.hovered);
  io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+ // Composite native InputInt submits an input and step buttons under one group.
+ // Hovering an actual child must be reported by the public component snapshot.
+ review::select(9,review::State::Normal);frame();frame();info=review::primary();
+ assert(info.maximum.x>info.minimum.x&&info.maximum.y>info.minimum.y);
+ io.AddMousePosEvent(info.minimum.x+20,(info.minimum.y+info.maximum.y)*.5f);
+ frame();frame();
+ assert(review::primary().interaction.hovered);
  // Actual keyboard focus/activation, with native help content following field.
  begin();bool checked=false;ui::Field f;f.help="Help after actual control";ui::Checkbox("check",&checked,f);
  const auto checkbox=ui::last_control();assert(checkbox.id==ImGui::GetItemID());
