@@ -164,3 +164,4 @@ void ChatBubble(const char* message,bool fromSelf,Tone tone,const char* author,c
     }
     ImGui::PopID();
 }
+} // namespace ui
