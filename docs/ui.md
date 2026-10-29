@@ -185,8 +185,9 @@ borders use `base-300`; semantic fills use their matching `*-content` foreground
 | `--border` | `Palette::metrics.border` |
 | `--depth/noise` | `Palette::metrics.depth/noise` (reserved; no CSS effects in native rendering) |
 
-Palette colors are sRGB **approximations** of daisyUI's OKLCH themes, not
-identical browser CSS pixels. The geometry values use logical pixels and
+Palette colors are converted from the canonical daisyUI v5 `light.css`
+and `dark.css` OKLCH values into rounded 8-bit sRGB. Gamma conversion and
+8-bit rounding can still differ from browser CSS gamut mapping and text rasterization. The geometry values use logical pixels and
 are scaled once by the native backend. Former `slateLight`/`slateDark`
 names remain as compatibility aliases. The renderer, touch, IME and Kern
 integration contract are untouched.

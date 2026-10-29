@@ -52,7 +52,10 @@ Paint paint(Options options){
     Color normal=subtle?(ghost||outline?Color{p.base100.r,p.base100.g,p.base100.b,0.f}:blend(p.base200,base,.12f)):base;
     Color text=subtle?(soft?base:p.baseContent):content;
     Color hover=subtle?blend(p.base100,base,ghost?.12f:.19f):lighten(base,.16f);
-    Color pressed=subtle?blend(p.base100,base,.30f):darken(base,.22f);
+    // A near-black neutral cannot get meaningful pressed contrast by darkening
+    // further. Press it toward white instead, distinctly beyond its hover.
+    Color pressed=subtle?blend(p.base100,base,.30f):
+        (base.r+base.g+base.b<.45f?lighten(base,.34f):darken(base,.22f));
     if(options.state.selected){
         normal=blend(normal,base,subtle?.23f:.10f);
         hover=blend(normal,base,.28f);

@@ -14,11 +14,14 @@ constexpr bool valid(const Palette& p) {
 }
 static_assert(valid(slateDark) && valid(slateLight));
 static_assert(daisyDark.base100.r<daisyLight.base100.r);
-static_assert(daisyLight.metrics.radiusSelector==16.f);
-static_assert(daisyLight.metrics.radiusField==8.f);
-static_assert(daisyLight.metrics.radiusBox==16.f);
+static_assert(daisyLight.metrics.radiusSelector==8.f);
+static_assert(daisyLight.metrics.radiusField==4.f);
+static_assert(daisyLight.metrics.radiusBox==8.f);
 static_assert(daisyLight.metrics.border==1.f);
 static_assert(daisyLight.metrics.depth && !daisyLight.metrics.noise);
+static_assert(daisyLight.primary.r==hex(0x422ad5).r);
+static_assert(daisyDark.neutral.r==hex(0x09090b).r);
+static_assert(daisyDark.secondaryContent.g==hex(0xf9e4f0).g);
 static_assert(slateDark.base100.r==daisyDark.base100.r);
 static_assert(slateLight.base100.r==daisyLight.base100.r);
 static_assert(slateDark.baseContent.r>slateLight.baseContent.r);
