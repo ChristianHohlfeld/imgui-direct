@@ -43,6 +43,9 @@ int main(){
     // overlay could vanish when parent/child lists were scrolled.
     ui::set_mode(ui::Mode::Light);ui::begin_frame();
     auto& io=ImGui::GetIO();io.DisplaySize={640,480};io.DeltaTime=1.f/60.f;
+    unsigned char* fontPixels=nullptr;int fontWidth=0,fontHeight=0;
+    io.Fonts->GetTexDataAsRGBA32(&fontPixels,&fontWidth,&fontHeight);
+    assert(fontPixels&&fontWidth>0&&fontHeight>0);
     ImGui::NewFrame();ImGui::SetNextWindowSize({600,420});ImGui::Begin("button-label-test");
     const auto normalVisual=ui::button_visual({});
     const ImU32 captionInk=ImGui::GetColorU32(ImVec4{
