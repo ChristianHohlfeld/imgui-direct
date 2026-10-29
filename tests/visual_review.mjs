@@ -43,6 +43,11 @@ try{
       await page.mouse.wheel(0,480);
       await page.waitForTimeout(220);
       await page.screenshot({path:`visual-review/${name}-catalog-scrolled.png`});
+      if(name==='desktop'){
+        const side=await page.evaluate(()=>window.__imguiItems?.[1105]);
+        assert(side&&side.y>=100&&side.y<=600,
+          'Sticky category sidebar must remain visible when gallery rows scroll');
+      }
       // Return to top before testing the elastic boundary or category switch.
       await page.mouse.wheel(0,-1600);
       await page.waitForTimeout(250);

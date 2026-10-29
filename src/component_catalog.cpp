@@ -164,14 +164,14 @@ void sample(int i){
     }
 }
 
-constexpr float previewHeight=142.f;
-constexpr float tileHeight=238.f;
+constexpr float previewHeight=126.f;
+constexpr float tileHeight=221.f;
 bool is_short_preview(int i){
     switch(i){
-    case 0:case 4:case 5:case 6:case 16:case 17:
-    case 19:case 21:case 30:case 32:case 33:case 34:
+    case 0:case 4:case 5:case 6:case 16:case 17:case 18:
+    case 19:case 21:case 30:case 31:case 32:case 33:case 34:
     case 37:case 40:case 41:case 42:case 43:case 44:
-    case 45:case 47:case 48:case 49:case 50:
+    case 45:case 47:case 48:case 49:case 50:case 51:
         return true;
     default:return false;
     }
@@ -206,8 +206,27 @@ bool tile(int index){
                             ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
             if(is_short_preview(index)){
                 const float available=previewHeight-20.f;
+                const float widgetHeight=(index==31?70.f:ui::control_height(ui::Size::MD));
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY()
-                    +std::max(0.f,(available-ui::control_height(ui::Size::MD))*.5f));
+                    +std::max(0.f,(available-widgetHeight)*.5f)*s);
+            }
+            // Keep compact graphic samples centered in the native preview,
+            // while editable forms and full-width controls keep natural flow.
+            float centeredWidth=0.f;
+            switch(index){
+                case 0:centeredWidth=177.f;break;
+                case 30:centeredWidth=105.f;break;
+                case 33:centeredWidth=55.f;break;
+                case 34:centeredWidth=30.f;break;
+                case 40:centeredWidth=94.f;break;
+                case 41:centeredWidth=70.f;break;
+                case 49:centeredWidth=155.f;break;
+                case 50:centeredWidth=230.f;break;
+                default:break;
+            }
+            if(centeredWidth>0.f){
+                const float spare=ImGui::GetContentRegionAvail().x-centeredWidth*s;
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX()+std::max(0.f,spare*.5f));
             }
             sample(index);
         }
@@ -302,7 +321,14 @@ bool draw_grid(int* outIndex){
 }
 } // namespace
 
-bool draw_index(int* outIndex){
+void draw_sidebar(){
+    ImGui::PushID("component-sidebar");
+    ImGui::TextDisabled("KATEGORIEN");
+    ImGui::Dummy({0,3.f*ui::scale()});
+    filter_buttons(true,std::max(1.f,ImGui::GetContentRegionAvail().x));
+    ImGui::PopID();
+}
+bool draw_index(int* outIndex,bool sidebarExternal){
     if(!outIndex)return false;
     const float s=ui::scale(),width=ImGui::GetContentRegionAvail().x;
     ImGui::PushID("component-index");
@@ -313,24 +339,11 @@ bool draw_index(int* outIndex){
     ui::Input("##catalog-search",search,sizeof(search),"Komponente suchen ...");
     ImGui::Dummy({0,3.f*s});
     bool opened=false;
-    if(width>=850.f*s){
-        if(ImGui::BeginTable("##browser",2,
-             ImGuiTableFlags_SizingFixedFit|ImGuiTableFlags_NoSavedSettings)){
-            ImGui::TableSetupColumn("Kategorien",ImGuiTableColumnFlags_WidthFixed,160.f*s);
-            ImGui::TableSetupColumn("Vorschau",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("KATEGORIEN");
-            filter_buttons(true,std::max(1.f,ImGui::GetContentRegionAvail().x));
-            ImGui::TableNextColumn();
-            opened=draw_grid(outIndex);
-            ImGui::EndTable();
-        }
-    }else{
+    if(!sidebarExternal){
         filter_buttons(false,width);
         ImGui::Dummy({0,4.f*s});
-        opened=draw_grid(outIndex);
     }
+    opened=draw_grid(outIndex);
     ImGui::PopStyleVar();
     ImGui::PopID();
     return opened;

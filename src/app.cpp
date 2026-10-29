@@ -405,6 +405,19 @@ void app::draw(){
 #ifdef __EMSCRIPTEN__
     browser_input_frame();
 #endif
+    // Desktop category navigation is a sibling of the scroll viewport, not
+    // a child of its scrolling content. It stays visible and fully clickable
+    // while the component previews move beneath their own scroll clip.
+    const bool catalogSidebar=d.page==9
+        &&ImGui::GetContentRegionAvail().x>=960.f*ui::scale();
+    if(catalogSidebar){
+        ImGui::BeginChild("##catalog-sidebar",{160.f*ui::scale(),0},
+            ImGuiChildFlags_NavFlattened,
+            ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+        gallery::draw_sidebar();
+        ImGui::EndChild();
+        ImGui::SameLine(0,8.f*ui::scale());
+    }
     if(pageChanged)ImGui::SetNextWindowScroll({0,0});
     ImGui::BeginChild("##gallery-content",{0,0},ImGuiChildFlags_NavFlattened);
     // The background stays fixed; only content vertices get a brief elastic
@@ -437,7 +450,7 @@ void app::draw(){
     else if(d.page==8)review::draw();
     else {
         int open=-1;
-        if(gallery::draw_index(&open)){review::select(open,review::State::Normal);d.page=8;ImGui::SetNextWindowScroll({0,0});}
+        if(gallery::draw_index(&open,catalogSidebar)){review::select(open,review::State::Normal);d.page=8;ImGui::SetNextWindowScroll({0,0});}
     }
     if(d.modal){ui::OpenModal("Bestätigung");d.modal=false;}
     if(ui::BeginModal("Bestätigung")){
