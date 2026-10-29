@@ -61,7 +61,10 @@ try{
       // The hidden IME textarea is an INSERT-ONLY bridge and clears itself
       // after forwarding text to C++. Setting DOM value='' does not delete the
       // native ImGui search. Exercise genuine mobile Backspace input instead.
-      for(let k=0;k<6;++k)await page.keyboard.press('Backspace');
+      for(let k=0;k<6;++k){
+        await page.keyboard.press('Backspace');
+        await page.waitForTimeout(35); // each key pair crosses one native frame
+      }
       await page.waitForFunction(()=>window.__imguiGallery?.matching===52);
       await page.evaluate(()=>document.getElementById('native-input').blur());
       await clickItem(page,1300,true);
