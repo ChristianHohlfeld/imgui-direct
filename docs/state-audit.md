@@ -6,9 +6,9 @@ state behaviour. The default gallery now opens the **Zustandsprüfung** inspecto
 
 ## Reproducible scope
 
-The catalogue in `src/state_gallery.cpp` contains all **48 existing component
-families** and **273 applicable component/state combinations**. Every combination
-is submitted in light/dark themes and desktop/touch layouts: **1,092 native render
+The catalogue in `src/state_gallery.cpp` contains all **52 native component
+families** and **300 applicable component/state combinations**. Every combination
+is submitted in light/dark themes and desktop/touch layouts: **1,200 native render
 cases**, plus the same browser screenshot matrix. The CI artifact contains named
 PNG files and `states/manifest.json`, rather than one generic screenshot per page.
 The matrix copies the completed real WebGL framebuffer before the browser discards
@@ -101,3 +101,15 @@ Browser screenshots establish the tested WebGL rendering, not physical iOS/Andro
 keyboard, clipboard or screen-reader certification. Engine-specific validation,
 files, commands and undo remain host responsibilities. The demo file-picker callback
 is labelled as an example and does not pretend to open a native OS dialog.
+
+### Additional native essentials
+
+| Family | Applicable persistent states / scenarios |
+|---|---|
+| Link | normal, disabled, readonly, loading, error, warning, success, long label |
+| Rating | normal, selected, disabled, readonly, loading, minimum, maximum |
+| Segmented / Join | normal, selected, disabled, readonly, loading, long content |
+| Chat bubble | normal, empty, long content, error, warning, success |
+
+The full inspector includes 52 families. Links, joined groups and ratings use
+real native input targets (not simulated interaction). Chat bubbles remain static.
