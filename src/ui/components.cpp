@@ -92,6 +92,34 @@ float control_height(Size size){
     int i=std::clamp((int)size,0,4);
     return (is_touch()?mobile[i]:desktop[i])*scale();
 }
+Color tone_color(Tone tone) {
+    const auto& p=palette();
+    switch(tone) {
+        case Tone::Primary: return p.primary;
+        case Tone::Secondary: return p.secondary;
+        case Tone::Accent: return p.accent;
+        case Tone::Neutral: return p.neutral;
+        case Tone::Info: return p.info;
+        case Tone::Success: return p.success;
+        case Tone::Warning: return p.warning;
+        case Tone::Error: return p.error;
+        default: return p.base100;
+    }
+}
+Color tone_content(Tone tone) {
+    const auto& p=palette();
+    switch(tone) {
+        case Tone::Primary: return p.primaryContent;
+        case Tone::Secondary: return p.secondaryContent;
+        case Tone::Accent: return p.accentContent;
+        case Tone::Neutral: return p.neutralContent;
+        case Tone::Info: return p.infoContent;
+        case Tone::Success: return p.successContent;
+        case Tone::Warning: return p.warningContent;
+        case Tone::Error: return p.errorContent;
+        default: return p.baseContent;
+    }
+}
 namespace { ControlInfo controlInfo{}; }
 namespace detail {
 void capture_control(){
@@ -149,32 +177,76 @@ void Muted(const char* value){
     ImGui::PopStyleColor();
 }
 void Divider(){ImGui::Separator();}
-void Badge(const char* value,Status status){
-    value=value?value:"";const Color c=status_color(status);
-    const float pad=8.f*scale(),available=std::max(1.f,ImGui::GetContentRegionAvail().x);
-    const float wrap=std::max(1.f,available-pad*2);
-    const auto measured=ImGui::CalcTextSize(value,nullptr,false,wrap);
-    const ImVec2 size{std::min(available,measured.x+pad*2),measured.y+pad};
-    const auto p=ImGui::GetCursorScreenPos();ImGui::Dummy(size);auto* d=ImGui::GetWindowDrawList();
-    d->AddRectFilled(p,{p.x+size.x,p.y+size.y},detail::ink(blend(palette().base200,c,.15f)),std::min(palette().metrics.radiusSelector*scale(),size.y*.5f));
-    d->AddText(nullptr,ImGui::GetFontSize(),{p.x+pad,p.y+pad*.5f},detail::ink(c),value,nullptr,wrap);
+void Badge(const char* value,Status status) {
+    const Tone tone=status==Status::Success?Tone::Success:status==Status::Warning?Tone::Warning:
+        status==Status::Error?Tone::Error:Tone::Info;
+    Badge(value,BadgeOptions{tone,Surface::Solid,Size::MD});
 }
-void Alert(const char* title,const char* message,Status status){
-    const Color c=status_color(status);
+void Badge(const char* value,BadgeOptions options) {
+    value=value?value:"";
+    const float mult=scale();
+    const int index=std::clamp(static_cast<int>(options.size),0,4);
+    const float heights[]={16.f,20.f,24.f,28.f,32.f};
+    const float fonts[]={10.f,12.f,14.f,16.f,18.f};
+    const float h=heights[index]*mult, pad=h*.5f;
+    const float available=std::max(1.f,ImGui::GetContentRegionAvail().x);
+    ImGui::PushFont(nullptr,fonts[index]*mult);
+    const float wrap=std::max(1.f,available-pad*2);
+    const auto txt=ImGui::CalcTextSize(value,nullptr,false,wrap);
+    const ImVec2 dims{std::min(available,txt.x+pad*2),std::max(h,txt.y+6.f*mult)};
+    const auto a=ImGui::GetCursorScreenPos();
+    ImGui::Dummy(dims);
+    const ImVec2 b{a.x+dims.x,a.y+dims.y};
+    const bool base=options.tone==Tone::Base;
+    const Color semantic=tone_color(options.tone);
+    const Color baseFill=base?palette().base100:semantic;
+    const Color fg=options.surface==Surface::Solid?tone_content(options.tone):
+        (base?palette().baseContent:semantic);
+    const Color bg=options.surface==Surface::Outline?Color{0.f,0.f,0.f,0.f}:
+        options.surface==Surface::Soft?blend(palette().base100,semantic,.08f):baseFill;
+    const Color border=options.surface==Surface::Outline?fg:
+        options.surface==Surface::Soft?blend(palette().base100,semantic,.10f):
+        (base?palette().base200:semantic);
+    const float radius=std::min(palette().metrics.radiusSelector*mult,dims.y*.5f);
+    auto* dl=ImGui::GetWindowDrawList();
+    if(bg.a>0.f)dl->AddRectFilled(a,b,packed(bg),radius);
+    if(palette().metrics.border>0.f)dl->AddRect(a,b,packed(border),radius,0,palette().metrics.border*mult);
+    dl->PushClipRect(a,b,true);
+    dl->AddText(ImGui::GetFont(),ImGui::GetFontSize(),
+        {a.x+pad,a.y+(dims.y-txt.y)*.5f},packed(fg),value,nullptr,wrap);
+    dl->PopClipRect();
+    ImGui::PopFont();
+}
+void Alert(const char* title,const char* message,Status status) {
+    const Tone tone=status==Status::Success?Tone::Success:status==Status::Warning?Tone::Warning:
+        status==Status::Error?Tone::Error:Tone::Info;
+    Alert(title,message,AlertOptions{tone,Surface::Solid});
+}
+void Alert(const char* title,const char* message,AlertOptions options) {
+    title=title?title:"";message=message?message:"";
+    const auto& p=palette();const Color c=tone_color(options.tone);
+    const Color bg=options.surface==Surface::Outline?Color{p.base100.r,p.base100.g,p.base100.b,0.f}:
+        options.surface==Surface::Soft?blend(p.base100,c,.08f):c;
+    const Color foreground=options.surface==Surface::Solid?tone_content(options.tone):c;
+    const Color border=options.surface==Surface::Soft?blend(p.base100,c,.10f):c;
+    const float padX=16.f*scale(),padY=12.f*scale(),gap=4.f*scale();
+    const float available=std::max(1.f,ImGui::GetContentRegionAvail().x);
+    const float wrap=std::max(1.f,available-padX*2.f);
+    const float titleH=*title?ImGui::CalcTextSize(title,nullptr,false,wrap).y:0.f;
+    const float msgH=*message?ImGui::CalcTextSize(message,nullptr,false,wrap).y:0.f;
+    const float h=std::max(52.f*scale(),titleH+msgH+padY*2.f+(*title&&*message?gap:0.f));
     ImGui::PushID(title);
-    const float w=std::max(150.f,ImGui::GetContentRegionAvail().x);
-    const ImVec2 measured=ImGui::CalcTextSize(message,nullptr,false,w-35.f);
-    const float h=std::max(78.f,measured.y+58.f);
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,vec(blend(palette().base200,c,.07f)));
-    ImGui::PushStyleColor(ImGuiCol_Border,vec(blend(palette().base300,c,.35f)));
-    ImGui::BeginChild("##notice",{0,h},ImGuiChildFlags_Borders);
-    ImGui::PushStyleColor(ImGuiCol_Text,vec(c));
-    ImGui::TextWrapped("%s",title?title:"");
-    ImGui::PopStyleColor();
-    ImGui::TextWrapped("%s",message);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{padX,padY});
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,p.metrics.radiusBox*scale());
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,vec(bg));
+    ImGui::PushStyleColor(ImGuiCol_Border,vec(border));
+    ImGui::PushStyleColor(ImGuiCol_Text,vec(foreground));
+    if(ImGui::BeginChild("##alert",{0,h},ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened)){
+        if(*title)ImGui::TextWrapped("%s",title);
+        if(*message)ImGui::TextWrapped("%s",message);
+    }
     ImGui::EndChild();
-    ImGui::PopStyleColor(2);
-    ImGui::PopID();
+    ImGui::PopStyleColor(3);ImGui::PopStyleVar(2);ImGui::PopID();
 }
 bool Button(const char* title,Options opt,ImVec2 size){
     title=title?title:"";
@@ -220,24 +292,38 @@ bool Button(const char* label,Variant variant,ImVec2 size,bool enabled){
 }
 bool Tabs(const char* id,const char* const* labels,int count,int* selected,Size size){
     if(!labels||!selected||count<=0)return false;
+    // daisyUI tabs-border: a thin shared baseline and a selected 3px underline.
+    // Wrap rows on narrow displays instead of clipping tabs away.
     const float gap=ImGui::GetStyle().ItemSpacing.x;
-    const float w=ImGui::GetContentRegionAvail().x;
-    float widest=0;
-    for(int i=0;i<count;++i)widest=std::max(widest,ImGui::CalcTextSize(labels[i],nullptr,true).x+20.f*scale());
-    const int columns=std::max(1,std::min(count,static_cast<int>((w+gap)/(std::max(60.f*scale(),widest)+gap))));
-    const float per=std::max(1.f,(w-gap*(columns-1))/columns);
-    bool changed=false;
-    ImGui::PushID(id);
-    for(int i=0;i<count;i++){
-        ImGui::PushID(i);
+    const float available=std::max(1.f,ImGui::GetContentRegionAvail().x);
+    float widest=0.f;
+    for(int i=0;i<count;++i)
+        widest=std::max(widest,ImGui::CalcTextSize(labels[i]?labels[i]:"",nullptr,true).x+24.f*scale());
+    const int columns=std::clamp(int((available+gap)/(std::max(60.f*scale(),widest)+gap)),1,count);
+    const float width=std::max(1.f,(available-gap*(columns-1))/columns);
+    const float height=control_height(size);
+    bool changed=false;ImGui::PushID(id);
+    for(int i=0;i<count;++i){
         if(i%columns)ImGui::SameLine();
-        Options opt;opt.size=size;opt.variant=*selected==i?Variant::Soft:Variant::Ghost;
-        opt.state.selected=*selected==i;
-        if(Button(labels[i],opt,{per,0})&&*selected!=i){*selected=i;changed=true;}
+        ImGui::PushID(i);
+        const bool activated=ImGui::InvisibleButton("##tab",{width,height},ImGuiButtonFlags_EnableNav);
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        const bool active=*selected==i;
+        const auto& p=palette();
+        const Color ink=active?p.baseContent:blend(p.baseContent,p.base100,.5f);
+        auto* dl=ImGui::GetWindowDrawList();
+        dl->AddRectFilled({a.x,b.y-1.f*scale()},b,packed(p.base300));
+        if(active)dl->AddRectFilled({a.x+8.f*scale(),b.y-3.f*scale()},
+            {b.x-8.f*scale(),b.y},packed(p.baseContent),palette().metrics.radiusField*.5f*scale());
+        ImGui::PushStyleColor(ImGuiCol_Text,vec(ink));
+        ImGui::RenderTextClipped(a,{b.x,b.y-2.f*scale()},labels[i]?labels[i]:"",
+            nullptr,nullptr,{.5f,.5f});
+        ImGui::PopStyleColor();
+        focus_ring();detail::capture_control();
+        if(activated&&*selected!=i){*selected=i;changed=true;}
         ImGui::PopID();
     }
-    ImGui::PopID();
-    return changed;
+    ImGui::PopID();return changed;
 }
 ImVec2 lastInputMin{},lastInputMax{};
 namespace { InputObserver inputObserver=nullptr;void* inputObserverUser=nullptr;
@@ -392,10 +478,14 @@ bool Slider(const char* name,float* value,float min,float max,const char* fmt,Fi
 }
 void Progress(const char* title,float fraction,Status status){
     ImGui::PushID(title);
-    ImGui::TextUnformatted(title);
-    ImGui::PushStyleColor(ImGuiCol_PlotHistogram,vec(status_color(status)));
-    ImGui::ProgressBar(std::isfinite(fraction)?std::clamp(fraction,0.f,1.f):0.f,{-FLT_MIN,11.f*scale()},"");
-    ImGui::PopStyleColor();
+    if(title&&*title)ImGui::TextUnformatted(title);
+    const float w=std::max(1.f,ImGui::GetContentRegionAvail().x),h=8.f*scale();
+    const auto a=ImGui::GetCursorScreenPos();ImGui::Dummy({w,h});
+    const auto b=ImVec2{a.x+w,a.y+h};
+    auto* dl=ImGui::GetWindowDrawList();
+    dl->AddRectFilled(a,b,packed(blend(palette().baseContent,palette().base100,.8f)),h*.5f);
+    const float value=std::isfinite(fraction)?std::clamp(fraction,0.f,1.f):0.f;
+    if(value>0.f)dl->AddRectFilled(a,{a.x+w*value,b.y},packed(status_color(status)),h*.5f);
     ImGui::PopID();
 }
 void Tooltip(const char* info){
@@ -409,11 +499,21 @@ bool BeginModal(const char* id,bool* open){
 }
 void EndModal(){ImGui::EndPopup();}
 bool BeginCard(const char* id,float height){
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,vec(palette().base100));
-    ImGui::PushStyleColor(ImGuiCol_Border,vec(palette().base300));
-    ImGuiChildFlags flags=ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened;
-    if(height<=0.f)flags|=ImGuiChildFlags_AutoResizeY;
-    return ImGui::BeginChild(id,{0,height<=0?0:height},flags);
+    CardOptions options;options.height=height;options.bordered=true;
+    return BeginCard(id,options);
 }
-void EndCard(){ImGui::EndChild();ImGui::PopStyleColor(2);}
+bool BeginCard(const char* id,CardOptions options){
+    const auto& p=palette();
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,vec(p.base100));
+    ImGui::PushStyleColor(ImGuiCol_Border,vec(p.base200));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,p.metrics.radiusBox*scale());
+    const float paddings[]={8.f,16.f,24.f,32.f,40.f};
+    const float pad=paddings[std::clamp(static_cast<int>(options.size),0,4)]*scale();
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{pad,pad});
+    ImGuiChildFlags flags=ImGuiChildFlags_NavFlattened;
+    if(options.bordered)flags|=ImGuiChildFlags_Borders;
+    if(options.height<=0.f)flags|=ImGuiChildFlags_AutoResizeY;
+    return ImGui::BeginChild(id,{0,options.height<=0?0:options.height},flags);
+}
+void EndCard(){ImGui::EndChild();ImGui::PopStyleVar(2);ImGui::PopStyleColor(2);}
 }
