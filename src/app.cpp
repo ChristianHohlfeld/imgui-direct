@@ -2,6 +2,7 @@
 #include "state_gallery.hpp"
 #include "ui/components.hpp"
 #include "ui/extended.hpp"
+#include "ui/essentials.hpp"
 #include "ui/theme.hpp"
 #include "ui/scroll.hpp"
 #include "imgui.h"
@@ -230,6 +231,30 @@ void navigation_demo(){
     ui::Divider("Schritte");const char* steps[]={"Auswählen","Prüfen","Übernehmen"};ui::Steps("steps",steps,selected%3);
     ui::Kbd("Ctrl + S");
 }
+void essentials_demo(bool narrow){
+    if(ui::BeginCard("##native-essentials",ui::CardOptions{ui::Size::MD,true})){
+        introduction("DaisyUI Must-haves","Native, responsiv, mit echter Tastatur- und Touch-Bedienung.");
+        static int active=1,stars=3;
+        static const char* modes[]={"Auswahl","Bearbeiten","Ansicht"};
+        ui::Muted("Segmentierte Auswahl");
+        ui::Segmented("Werkzeugmodus",modes,&active);
+        space();
+        ui::Rating("Bewertung",&stars,5);
+        space(5);
+        if(ui::Link("Details zum Projekt",ui::Tone::Primary))
+            notifications.push("Link-Aktion an die Anwendung übergeben",ui::Status::Info,ImGui::GetTime());
+        space(6);
+        ui::Badge("Primär",{ui::Tone::Primary,ui::Surface::Solid,ui::Size::MD});
+        ImGui::SameLine();
+        ui::Badge("Outline",{ui::Tone::Secondary,ui::Surface::Outline,ui::Size::MD});
+        if(narrow)space(3);else ImGui::SameLine();
+        ui::Badge("Soft",{ui::Tone::Accent,ui::Surface::Soft,ui::Size::MD});
+        space(7);
+        ui::Alert("Hinweis","Semantische Farben, Rundungen und Größen folgen dem daisyUI-Base-Schema.",
+                  {ui::Tone::Info,ui::Surface::Soft});
+    }
+    ui::EndCard();
+}
 void data_demo(){
     introduction("Daten","Tabellen, Status und Hierarchien für echte Werkzeuge.");
     ui::Stat("Szenenobjekte","1.024","Nur sichtbare Listenzeilen werden aufgebaut.");
@@ -255,6 +280,9 @@ void data_demo(){
     ui::Skeleton("placeholder",{0,22});
     if(ui::Button("Benachrichtigung anzeigen"))notifications.push("Änderung übernommen",ui::Status::Success,ImGui::GetTime());
     mark(101);
+    ui::Divider("Chat-Bubbles");
+    ui::ChatBubble("Die Szene wurde geladen.",false,ui::Tone::Base,"System","Gerade eben");
+    ui::ChatBubble("Danke! Bitte Vorschau öffnen.",true,ui::Tone::Primary,"Du","Gesendet");
 }
 void editor_demo(){
     introduction("Editor-Eingaben","C++-Daten direkt bearbeiten, ohne UI-seitige Datenkopie.");
@@ -370,7 +398,7 @@ void app::draw(){
         sample(narrow);
         if(columns)ImGui::Columns(1);
         space(12);
-        feedback(narrow);
+        feedback(narrow);space(12);essentials_demo(narrow);
     }else if(d.page==1){
         introduction("Eingaben","Einheitliche Felder mit echten Interaktionszuständen.");
         const bool columns=!narrow&&ImGui::GetContentRegionAvail().x>720.f;
