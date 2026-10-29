@@ -32,6 +32,15 @@ jobs:
         run: node tests/visual_review.mjs
         env:
           DEMO_URL: http://127.0.0.1:8765/index.html
+      - name: Publish gallery visuals before long state matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery-quick-sight-review
+          retention-days: 7
+          path: |
+            visual-review/*catalog*.png
+            visual-review/*list-after-scroll.png
+          if-no-files-found: error
       - name: Render every supported component state and test real interactions
         run: node tests/state_review.mjs
         env:
