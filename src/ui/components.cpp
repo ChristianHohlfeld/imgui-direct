@@ -260,34 +260,50 @@ bool Button(const char* title,Options opt,ImVec2 size){
     if(size.x<=0)size.x=std::min(std::max(1.f,ImGui::GetContentRegionAvail().x),measured.x+20.f*scale()+busy);
     if(opt.fullWidth)size.x=std::max(1.f,ImGui::GetContentRegionAvail().x);
     size.y=std::max(size.y,h);
-    ImGui::PushStyleColor(ImGuiCol_Button,vec(p.normal));
+
+    // IMPORTANT: Native ImGui must render ordinary button labels into the
+    // same draw command as their frame. The previous transparent ImGui text
+    // followed by a custom overlay could lose its label during nested list
+    // clipping/scroll and rubber-band translation.
+    const bool truncated=measured.x>size.x-busy-16.f*scale();
     const bool touch=ImGui::GetIO().MouseSource==ImGuiMouseSource_TouchScreen;
+    ImGui::PushStyleColor(ImGuiCol_Button,vec(p.normal));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered,vec(touch?p.normal:p.hover));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,vec(p.pressed));
-    ImGui::PushStyleColor(ImGuiCol_Text,{p.text.r,p.text.g,p.text.b,0});
+    ImGui::PushStyleColor(ImGuiCol_Text,vec(p.text));
     ImGui::PushStyleColor(ImGuiCol_Border,vec(p.border));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,p.outline?palette().metrics.border:0.f);
     ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,locked&&!opt.state.disabled?1.f:ImGui::GetStyle().DisabledAlpha);
     ImGui::BeginDisabled(locked);
-    const bool clicked=ImGui::Button(title,size)&&!locked;
-    ImGui::PopStyleColor(); // border
-    ImGui::PopStyleColor(); // transparent label
-    ImGui::PushStyleColor(ImGuiCol_Text,vec(p.text));
-    const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
-    auto* draw=ImGui::GetWindowDrawList();draw->PushClipRect(a,b,true);
-    const float right=std::max(a.x,b.x-busy-8.f*scale());
-    if(measured.x>right-a.x-8.f*scale())
-        ImGui::RenderTextEllipsis(draw,{a.x+8.f*scale(),(a.y+b.y-measured.y)*.5f},{right,b.y},right,title,ImGui::FindRenderedTextEnd(title),&measured);
-    else ImGui::RenderTextClipped({a.x+8.f*scale(),a.y},{right,b.y},title,nullptr,nullptr,{.5f,.5f});
-    if(opt.state.loading){
-        auto* d=ImGui::GetWindowDrawList();const float start=static_cast<float>(ImGui::GetTime()*3.8f);
-        d->PathArcTo({b.x-12.f*scale(),(a.y+b.y)*.5f},5.5f*scale(),start,start+4.2f,16);
-        d->PathStroke(ImGui::GetColorU32(vec(p.text)),0,1.8f*scale());
+    bool clicked=false;
+    if(truncated){
+        // Long labels retain a stable ID, but only these exceptional items
+        // need custom clipping and an ellipsis. Common labels remain native.
+        ImGui::PushID(title);
+        clicked=ImGui::Button("##ellipsized",size)&&!locked;
+        ImGui::PopID();
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        const float right=std::max(a.x,b.x-busy-8.f*scale());
+        auto* draw=ImGui::GetWindowDrawList();
+        draw->PushClipRect(a,b,true);
+        ImGui::RenderTextEllipsis(draw,
+            {a.x+8.f*scale(),(a.y+b.y-measured.y)*.5f},{right,b.y},
+            right,title,ImGui::FindRenderedTextEnd(title),&measured);
+        draw->PopClipRect();
+    }else{
+        clicked=ImGui::Button(title,size)&&!locked;
     }
-    draw->PopClipRect();focus_ring();detail::capture_control();
-    if(measured.x>right-a.x-8.f*scale()&&(ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort|ImGuiHoveredFlags_AllowWhenDisabled)||ImGui::IsItemFocused()))
+    if(opt.state.loading){
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        auto* draw=ImGui::GetWindowDrawList();
+        const float t=static_cast<float>(ImGui::GetTime()*3.8f);
+        draw->PathArcTo({b.x-12.f*scale(),(a.y+b.y)*.5f},5.5f*scale(),t,t+4.2f,16);
+        draw->PathStroke(ImGui::GetColorU32(vec(p.text)),0,1.8f*scale());
+    }
+    focus_ring();detail::capture_control();
+    if(truncated&&(ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort|ImGuiHoveredFlags_AllowWhenDisabled)||ImGui::IsItemFocused()))
         detail::tooltip_text(title,ImGui::FindRenderedTextEnd(title));
-    ImGui::PopStyleColor();ImGui::EndDisabled();ImGui::PopStyleVar(2);ImGui::PopStyleColor(3);
+    ImGui::EndDisabled();ImGui::PopStyleVar(2);ImGui::PopStyleColor(5);
     return clicked;
 }
 bool Button(const char* label,Variant variant,ImVec2 size,bool enabled){
