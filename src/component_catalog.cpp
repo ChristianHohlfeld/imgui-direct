@@ -257,6 +257,7 @@ bool filter_buttons(bool vertical,float width){
     constexpr const char* options[]={"Alle","Aktionen","Eingaben","Navigation",
                                       "Darstellung","Feedback","Layout"};
     const float s=ui::scale(),gap=ImGui::GetStyle().ItemSpacing.x;
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{6.f*s,5.f*s});
     float consumed=0.f;
     bool changed=false;
     ImGui::PushID("catalog-filters");
@@ -281,6 +282,7 @@ bool filter_buttons(bool vertical,float width){
         consumed+=w;
     }
     ImGui::PopID();
+    ImGui::PopStyleVar();
     return changed;
 }
 bool matches_item(int i){
@@ -357,7 +359,7 @@ bool draw_index(int* outIndex){
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{12.f*s,9.f*s});
     ImGui::SetNextItemWidth(-1);
     const bool modified=ImGui::InputTextWithHint("##search",
-        "Komponenten durchsuchen (Name, Funktion, Kategorie)",search,sizeof(search));
+        "Komponenten suchen ...",search,sizeof(search));
     ImGui::PopStyleVar();
     if(modified&&width<850.f*s)ImGui::SetScrollY(0);
     ImGui::Dummy({0,5.f*s});
