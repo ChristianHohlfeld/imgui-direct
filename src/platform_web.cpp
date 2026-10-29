@@ -27,10 +27,10 @@ EM_JS(int, native_text_focused,(), {
     return document.activeElement===document.getElementById('native-input')?1:0;
 });
 
-EM_JS(void, report_scroll, (float x,float y,int rows,float pending,float mx,float my,float maxY,float posY,int inside,int packets), {
+EM_JS(void, report_scroll, (float x,float y,int rows,float pending,float mx,float my,float maxY,float posY,int inside,int packets,float elastic), {
     window.__imguiScroll={appliedX:x, appliedY:y, rowsRendered:rows, time:performance.now()};
     window.__imguiScrollTotal=(window.__imguiScrollTotal||0)+y;
-    window.__imguiScrollDebug={pending,mx,my,maxY,posY,inside,packets};
+    window.__imguiScrollDebug={pending,mx,my,maxY,posY,inside,packets,elasticY:elastic};
 });
 EM_JS(void, diagnostic_wheel, (float x,float y,float mouseX,float mouseY,int mode), {
     window.__imguiRawWheel={x,y,mouseX,mouseY,mode,received:(window.__imguiRawWheel?.received||0)+1};
@@ -191,7 +191,7 @@ void frame() {
                   ui::scroll::state().lastPointerX,ui::scroll::state().lastPointerY,
                   ui::scroll::state().lastMaxY,ui::scroll::state().lastScrollY,
                   ui::scroll::state().lastInside?1:0,
-                  (int)ui::scroll::state().packets);
+                  (int)ui::scroll::state().packets,ui::scroll::state().overscrollY);
     const auto background=ui::palette().base100;
     glViewport(0,0,fw,fh);
     glClearColor(background.r,background.g,background.b,1);

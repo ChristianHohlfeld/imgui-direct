@@ -18,6 +18,18 @@ try{
     const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
     const response=await page.goto(url,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);
     await page.waitForFunction(()=>window.__imguiItems?.[8]&&document.getElementById('status').textContent==='');
+    // Saturated page boundary has visible elastic feedback but clamped scroll.
+    if(name==='desktop'){
+      await page.mouse.move(width*.5,height*.7);
+      await page.mouse.wheel(0,-500);
+      await page.waitForFunction(()=>Math.abs(window.__imguiScrollDebug?.elasticY||0)>.5);
+      const bounce=await page.evaluate(()=>window.__imguiScrollDebug.elasticY);
+      assert(bounce<0,'Pull above page top must produce outward displacement');
+      await page.waitForTimeout(700);
+      const settled=await page.evaluate(()=>window.__imguiScrollDebug.elasticY);
+      assert(Math.abs(settled)<Math.abs(bounce)*.15,
+        'Elastic scroll must spring back after gesture, not stick at boundary');
+    }
     await clickItem(page,0,touch);
     await page.waitForFunction(()=>window.__imguiItems?.[100]&&window.__imguiUIState.page===0);
     await page.waitForTimeout(200); // settle newly-created auto-resizing example cards

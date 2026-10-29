@@ -238,3 +238,5 @@ between nested scroll panes while there is still useful parent scrolling.
 Non-pixel Windows/desktop wheel paths remain immediate. On the web,
 `prefers-reduced-motion: reduce` disables the effect entirely.
 No CSS transforms, DOM scrollable layer, or duplicated gesture engine.
+
+Chromium visual QA now sends a genuine out-of-bounds wheel gesture to the component catalogue, measures native elastic displacement, and asserts spring return.
