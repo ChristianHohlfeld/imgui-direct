@@ -13,7 +13,7 @@ inline void dispatch(const Events& events) {
             // releasing a pressed button at an off-screen cancel position.
             io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
             io.AddMousePosEvent(e.x,e.y);
-            ui::scroll::add(e.value*60.f,e.second*60.f);
+            ui::scroll::add_elastic(e.value*60.f,e.second*60.f);
             continue;
         }
         if(e.type==Type::Cancel) {

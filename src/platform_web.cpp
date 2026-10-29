@@ -211,6 +211,10 @@ int main() {
     app::setup();
     isTouchDevice=emscripten_run_script_int("('ontouchstart' in window) || navigator.maxTouchPoints>0");
     app::set_touch(isTouchDevice);
+    // Respect accessibility: reduced-motion users get precise scrolling,
+    // without any elastic displacement animation.
+    ui::scroll::set_reduce_motion(emscripten_run_script_int(
+        "window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0")!=0);
     if(isTouchDevice) ImGui::GetIO().ConfigFlags|=ImGuiConfigFlags_IsTouchScreen;
     if(!ImGui_ImplOpenGL3_Init("#version 300 es")) return 2;
     emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW,nullptr,true,keycb);

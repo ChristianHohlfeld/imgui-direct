@@ -400,6 +400,9 @@ void app::draw(){
 #endif
     if(pageChanged)ImGui::SetNextWindowScroll({0,0});
     ImGui::BeginChild("##gallery-content",{0,0},ImGuiChildFlags_NavFlattened);
+    // The background stays fixed; only content vertices get a brief elastic
+    // translation when a pixel/touch gesture exceeds a real scroll boundary.
+    const int contentVertexStart=ImGui::GetWindowDrawList()->VtxBuffer.Size;
     if(d.page==0){
         introduction("Grundelemente","Alles, was eine klare Oberfläche braucht.");
         const bool columns=!narrow&&ImGui::GetContentRegionAvail().x>720.f;
@@ -439,6 +442,8 @@ void app::draw(){
         ui::EndModal();
     }
     ui::scroll::apply();
+    ui::scroll::bounce_after_scroll();
+    ui::scroll::render_bounce(contentVertexStart);
     ImGui::EndChild();
     ui::scroll::end_frame();
 #ifdef __EMSCRIPTEN__
