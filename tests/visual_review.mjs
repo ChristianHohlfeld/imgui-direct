@@ -29,11 +29,11 @@ try{
     assert.equal(initialGallery.drawn,1,'The documentation shows one selected component, not a grid of miniatures');
     if(name==='desktop'){
       // The left navigation changes the right-hand documentation content.
-      await clickItem(page,1218);
-      await page.waitForFunction(()=>window.__imguiGallery?.filter===4);
-      await page.screenshot({path:'visual-review/desktop-docs-accordion.png'});
+      await clickItem(page,1220); // Dropdown is visible in the first sidebar section
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1420]);
+      await page.screenshot({path:'visual-review/desktop-docs-dropdown.png'});
       await clickItem(page,1200);
-      await page.waitForFunction(()=>window.__imguiGallery?.filter===1);
+      await page.waitForFunction(()=>!!window.__imguiItems?.[1400]);
       await page.screenshot({path:'visual-review/desktop-docs-button.png'});
     }
     if(name==='mobile'){

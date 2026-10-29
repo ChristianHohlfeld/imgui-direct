@@ -394,6 +394,12 @@ void draw_details(){
     ImGui::Dummy({0,7.f*s});
     ImGui::PushFont(nullptr,32.f*s);
     ImGui::TextUnformatted(entry.name);
+#ifdef __EMSCRIPTEN__
+    {
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        browser_qa_item(1400+chosen,a.x,a.y,b.x-a.x,b.y-a.y);
+    }
+#endif
     ImGui::PopFont();
     ImGui::Dummy({0,6.f*s});
     ImGui::PushTextWrapPos();
