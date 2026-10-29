@@ -9,7 +9,7 @@
 namespace ui {
 namespace {
 Mode currentMode=Mode::Dark;
-Palette active=slateDark;
+Palette active=daisyDark;
 bool dark=true;
 bool touch=false;
 float fontScale=1.f;
@@ -24,31 +24,31 @@ void apply() {
     ImGuiStyle& s=ImGui::GetStyle();
     const Palette& p=active;
     auto set=[&](ImGuiCol n,Color c){s.Colors[n]=v(c);};
-    set(ImGuiCol_WindowBg,p.base100);
-    set(ImGuiCol_ChildBg,p.base200);
-    set(ImGuiCol_PopupBg,p.base200);
+    set(ImGuiCol_WindowBg,p.base200);
+    set(ImGuiCol_ChildBg,p.base100);
+    set(ImGuiCol_PopupBg,p.base100);
     set(ImGuiCol_Text,p.baseContent);
-    set(ImGuiCol_TextDisabled,blend(p.baseContent,p.base100,.44f));
+    set(ImGuiCol_TextDisabled,blend(p.baseContent,p.base100,.48f));
     set(ImGuiCol_Border,p.base300);
     set(ImGuiCol_Separator,p.base300);
-    set(ImGuiCol_FrameBg,p.base200);
-    set(ImGuiCol_FrameBgHovered,blend(p.base200,p.primary,.13f));
-    set(ImGuiCol_FrameBgActive,blend(p.base200,p.primary,.22f));
-    set(ImGuiCol_Button,p.secondary);
-    set(ImGuiCol_ButtonHovered,blend(p.secondary,p.primary,.15f));
-    set(ImGuiCol_ButtonActive,blend(p.secondary,p.primary,.28f));
+    set(ImGuiCol_FrameBg,p.base100);
+    set(ImGuiCol_FrameBgHovered,blend(p.base100,p.primary,.07f));
+    set(ImGuiCol_FrameBgActive,blend(p.base100,p.primary,.12f));
+    set(ImGuiCol_Button,p.base200);
+    set(ImGuiCol_ButtonHovered,blend(p.base200,p.baseContent,.09f));
+    set(ImGuiCol_ButtonActive,blend(p.base200,p.baseContent,.17f));
     set(ImGuiCol_CheckMark,p.primary);
     set(ImGuiCol_SliderGrab,p.primary);
     set(ImGuiCol_SliderGrabActive,blend(p.primary,p.baseContent,.14f));
     set(ImGuiCol_Header,p.base300);
     set(ImGuiCol_HeaderHovered,blend(p.base300,p.primary,.17f));
     set(ImGuiCol_HeaderActive,blend(p.base300,p.primary,.30f));
-    set(ImGuiCol_Tab,p.base200);
-    set(ImGuiCol_TabHovered,blend(p.base200,p.primary,.28f));
-    set(ImGuiCol_TabSelected,p.base300);
+    set(ImGuiCol_Tab,p.base100);
+    set(ImGuiCol_TabHovered,blend(p.base100,p.primary,.10f));
+    set(ImGuiCol_TabSelected,p.base200);
     set(ImGuiCol_TabSelectedOverline,p.primary);
-    set(ImGuiCol_TitleBg,p.base200);
-    set(ImGuiCol_TitleBgActive,p.base200);
+    set(ImGuiCol_TitleBg,p.base100);
+    set(ImGuiCol_TitleBgActive,p.base100);
     set(ImGuiCol_ResizeGrip,p.primary);
     set(ImGuiCol_ResizeGripHovered,p.primary);
     set(ImGuiCol_ResizeGripActive,p.primary);
@@ -63,14 +63,15 @@ void apply() {
     set(ImGuiCol_TableRowBg,p.base100);
     set(ImGuiCol_TableRowBgAlt,p.base200);
     s.WindowRounding=0.f;
-    s.ChildRounding=12.f;
-    s.PopupRounding=9.f;
-    s.FrameRounding=8.f;
-    s.GrabRounding=7.f;
-    s.ScrollbarRounding=7.f;
+    s.ChildRounding=p.metrics.radiusBox;
+    s.PopupRounding=p.metrics.radiusBox;
+    s.FrameRounding=p.metrics.radiusField;
+    s.GrabRounding=p.metrics.radiusSelector;
+    s.ScrollbarRounding=p.metrics.radiusSelector;
     s.WindowBorderSize=0.f;
-    s.ChildBorderSize=1.f;
-    s.FrameBorderSize=0.f;
+    s.ChildBorderSize=p.metrics.border;
+    s.PopupBorderSize=p.metrics.border;
+    s.FrameBorderSize=p.metrics.border;
     s.WindowPadding=ImVec2(touch?15.f:20.f,touch?14.f:20.f);
     s.FramePadding=ImVec2(touch?12.f:13.f,touch?8.f:8.f);
     s.ItemSpacing=ImVec2(10.f,touch?12.f:12.f);
@@ -89,7 +90,7 @@ void set_mode(Mode next) {
     if(next==Mode::Custom)return;
     currentMode=next;
     dark=next==Mode::Dark;
-    active=dark?slateDark:slateLight;
+    active=dark?daisyDark:daisyLight;
     themeDirty=true;
 }
 void set_custom_palette(const Palette& custom,bool darkBase) {
@@ -116,7 +117,7 @@ void initialize(){
     #endif
     currentMode=Mode::Dark;
     dark=true;
-    active=slateDark;
+    active=daisyDark;
     apply();
 }
 void begin_frame(){if(themeDirty)apply();}

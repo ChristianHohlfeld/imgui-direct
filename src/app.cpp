@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "state_gallery.hpp"
 #include "ui/components.hpp"
 #include "ui/extended.hpp"
 #include "ui/theme.hpp"
@@ -14,11 +15,12 @@ extern "C" void browser_input_region(float,float,float,float,int);
 extern "C" void browser_qa_state(int page,int clicks);
 extern "C" void browser_qa_item(int id,float x,float y,float w,float h);
 extern "C" void browser_qa_field(int id,const char* value);
+extern "C" void browser_qa_catalog(int,const char*,unsigned,int);
 #endif
 
 namespace {
 struct Demo {
-    int page=0, choice=0, plan=1, clicks=0, listSelected=-1;
+    int page=8, choice=0, plan=1, clicks=0, listSelected=-1;
     bool dark=false, notify=true, agreed=true, invalid=false, modal=false;
     float volume=.65f, progress=.72f;
     char name[128]="Alex Morgan";
@@ -36,6 +38,11 @@ void mark([[maybe_unused]] int id){
 }
 bool gallery_navigation(){
     bool changed=false;
+    if(d.page==8){
+        ui::Options examples;examples.variant=ui::Variant::Ghost;examples.size=ui::Size::SM;
+        if(ui::Button("Beispiele anzeigen",examples)){d.page=0;changed=true;}mark(0);mark(8);
+        return changed;
+    }
     static const char* names[]={"Buttons","Eingabe","Design","Liste","Menüs","Daten","Editor","Layout"};
     const float gap=ImGui::GetStyle().ItemSpacing.x;
     const float per=std::max(1.f,(ImGui::GetContentRegionAvail().x-gap*3)/4);
@@ -46,7 +53,10 @@ bool gallery_navigation(){
         if(ui::Button(names[i],opt,{per,0})){changed=d.page!=i;d.page=i;}
         mark(i);ImGui::PopID();
     }
-    ImGui::PopStyleVar();return changed;
+    ImGui::PopStyleVar();
+    ui::Options all;all.variant=ui::Variant::Outline;all.fullWidth=true;all.size=ui::Size::SM;all.state.selected=d.page==8;
+    if(ui::Button("Alle Komponenten · Zustandsprüfung",all)){changed=d.page!=8;d.page=8;}mark(8);
+    return changed;
 }
 
 void space(float n=8.f){ImGui::Dummy({0,n*ui::scale()});}
@@ -282,7 +292,7 @@ void layout_demo(){
 void theme(bool narrow){
     introduction("Erscheinungsbild","Eine gemeinsame Palette für jedes Element.");
     if(ui::BeginCard("##theme")){
-        ui::Heading("Slate");
+        ui::Heading("daisyUI Base");
         ui::Muted("Hell und Dunkel mit abgestimmten Kontrasten.");
         space();
         if(ui::Switch("Dunkles Design",&d.dark))
@@ -299,9 +309,15 @@ void theme(bool narrow){
     ui::EndCard();
 }
 }
+void app::review_configure(int component,int state,int dark,int size){
+    d.page=8;review::select(component,static_cast<review::State>(state));
+    ui::set_mode(dark?ui::Mode::Dark:ui::Mode::Light);
+    review::set_size(static_cast<ui::Size>(std::clamp(size,0,4)));
+}
 void app::setup(){
     ui::initialize();ui::set_mode(ui::Mode::Light);
 #ifdef __EMSCRIPTEN__
+    for(int i=0;i<review::count();++i){const auto& c=review::component(i);browser_qa_catalog(i,c.name,c.states,c.interactive);}
     ui::SetInputObserver([](ImVec2 a,ImVec2 b,bool active,void*){
         browser_input_region(a.x,a.y,b.x-a.x,b.y-a.y,active?1:0);
     });
@@ -344,7 +360,7 @@ void app::draw(){
     browser_input_frame();
 #endif
     if(pageChanged)ImGui::SetNextWindowScroll({0,0});
-    ImGui::BeginChild("##gallery-content",{0,0});
+    ImGui::BeginChild("##gallery-content",{0,0},ImGuiChildFlags_NavFlattened);
     if(d.page==0){
         introduction("Grundelemente","Alles, was eine klare Oberfläche braucht.");
         const bool columns=!narrow&&ImGui::GetContentRegionAvail().x>720.f;
@@ -368,7 +384,8 @@ void app::draw(){
     else if(d.page==4)navigation_demo();
     else if(d.page==5)data_demo();
     else if(d.page==6)editor_demo();
-    else layout_demo();
+    else if(d.page==7)layout_demo();
+    else review::draw();
     if(d.modal){ui::OpenModal("Bestätigung");d.modal=false;}
     if(ui::BeginModal("Bestätigung")){
         ui::Heading("Alles erledigt");

@@ -51,7 +51,7 @@ ui::Input("Name",name,sizeof(name),"Name",f);
 
 ## Themes
 
-One palette of semantic tokens. Built-in `Slate Dark` and `Slate Light`
+One palette of semantic tokens. Built-in `daisyDark` and `daisyLight`
 share component definitions. Custom themes are data, not another stylesheet:
 
 ```cpp
@@ -159,3 +159,35 @@ See [embedding.md](embedding.md) for the CMake target, frame/input/render contra
 async host capabilities and Kern's WASI adapter boundary. The full DaisyUI
 selection, including intentionally excluded/deferred families, is in
 [component-coverage.md](component-coverage.md).
+
+## State contract
+
+See [state-audit.md](state-audit.md) for the 48-family state catalogue, field-state
+precedence, genuine interaction checks and the complete screenshot matrix.
+`Field` now additionally accepts `loading`, `validation` (None/Success/Warning/Error)
+and `indeterminate` (Checkbox only). Existing aggregate initializers remain valid.
+`last_control()` returns the actual native control's ID, bounds and interaction,
+even after helper text; hover/press/focus are always derived from real input.
+
+## daisyUI v5 base-theme schema
+
+The target is the [daisyUI theme schema](https://daisyui.com/docs/themes/) instead
+of a Slate look. Cards and inputs use `base-100`, page chrome uses `base-200`,
+borders use `base-300`; semantic fills use their matching `*-content` foreground.
+
+| daisyUI property | Native equivalent |
+|---|---|
+| `--color-base-100/200/300/content` | `Palette::base100/base200/base300/baseContent` |
+| `--color-primary/secondary/accent/neutral(-content)` | `Palette` brand and foreground roles |
+| `--color-info/success/warning/error(-content)` | `Palette` feedback roles |
+| `--radius-selector/field/box` | `Palette::metrics.radiusSelector/radiusField/radiusBox` |
+| `--size-selector/field` | `Palette::metrics.sizeSelector/sizeField` |
+| `--border` | `Palette::metrics.border` |
+| `--depth/noise` | `Palette::metrics.depth/noise` (reserved; no CSS effects in native rendering) |
+
+Palette colors are converted from the canonical daisyUI v5 `light.css`
+and `dark.css` OKLCH values into rounded 8-bit sRGB. Gamma conversion and
+8-bit rounding can still differ from browser CSS gamut mapping and text rasterization. The geometry values use logical pixels and
+are scaled once by the native backend. Former `slateLight`/`slateDark`
+names remain as compatibility aliases. The renderer, touch, IME and Kern
+integration contract are untouched.

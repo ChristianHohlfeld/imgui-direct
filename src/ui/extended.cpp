@@ -1,5 +1,6 @@
 #include "ui/extended.hpp"
 #include "ui/scroll.hpp"
+#include "ui/field_detail.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cfloat>
@@ -16,24 +17,11 @@ Color statusColor(Status s){
     case Status::Error:return palette().error;default:return palette().info;}
 }
 float unit(float f){return std::isfinite(f)?std::clamp(f,0.f,1.f):0.f;}
-// Reuses field semantics without taking ownership of data or input lifetimes.
-struct EditScope {
-    Field field;
-    EditScope(const char* label,Field f):field(f){
-        ImGui::PushID(label);Label(label,f.required);
-        ImGui::BeginDisabled(f.disabled||f.readOnly);
-        ImGui::PushStyleColor(ImGuiCol_Border,v(f.invalid?palette().error:palette().base300));
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,1.f);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{12.f*scale(),std::max(6.f,(control_height(f.size)-ImGui::GetFontSize())*.5f)});
-        ImGui::SetNextItemWidth(-FLT_MIN);
-    }
-    ~EditScope(){
-        scroll::set_drag_control_active(ImGui::IsItemActive());
-        ImGui::PopStyleVar(2);ImGui::PopStyleColor();ImGui::EndDisabled();
-        if(field.help)Validation(field.help,!field.invalid);
-        ImGui::PopID();
-    }
+struct EditScope:detail::FieldScope {
+    using detail::FieldScope::FieldScope;
+    ~EditScope(){scroll::set_drag_control_active(ImGui::IsItemActive());}
 };
+
 }
 int page_count(int total,int size){ return total>0&&size>0?1+(total-1)/size:0; }
 bool Navigation(const char* id,std::span<const NavItem> items,int* selected,bool vertical,Size size){
@@ -80,6 +68,7 @@ bool Collapse(const char* label,bool* open,bool disabled){
     ImGui::BeginDisabled(disabled);
     ImGui::SetNextItemOpen(*open,ImGuiCond_Always);
     *open=ImGui::CollapsingHeader(label);
+    detail::capture_control();
     ImGui::EndDisabled();return *open;
 }
 bool Accordion(const char* label,int index,int* openIndex,bool disabled){
@@ -97,7 +86,8 @@ void EndDropdown(){ImGui::EndPopup();}
 bool BeginContextMenu(const char* id){return ImGui::BeginPopupContextItem(id);}
 void EndContextMenu(){ImGui::EndPopup();}
 bool MenuItem(const char* label,const char* shortcut,bool selected,bool enabled){
-    return ImGui::MenuItem(label,shortcut,selected,enabled);
+    const bool clicked=ImGui::MenuItem(label,shortcut,selected,enabled);
+    detail::capture_control();return clicked;
 }
 void BeginFieldset(const char* id,const char* legend,bool disabled){
     ImGui::PushID(id);ImGui::BeginGroup();ImGui::BeginDisabled(disabled);
@@ -106,12 +96,16 @@ void BeginFieldset(const char* id,const char* legend,bool disabled){
 void EndFieldset(){ImGui::EndDisabled();ImGui::EndGroup();ImGui::PopID();}
 void Label(const char* label,bool required){
     const char* shown=text(label);
-    ImGui::TextUnformatted(shown,std::strstr(shown,"##"));
+    ImGui::PushTextWrapPos();ImGui::TextUnformatted(shown,std::strstr(shown,"##"));ImGui::PopTextWrapPos();
     if(required){ImGui::SameLine();ImGui::TextColored(v(palette().error),"*");}
 }
 void Validation(const char* message,bool valid){
     ImGui::PushStyleColor(ImGuiCol_Text,v(valid?blend(palette().baseContent,palette().base100,.4f):palette().error));
     ImGui::TextWrapped("%s",text(message));ImGui::PopStyleColor();
+}
+void Validation(const char* message,ValidationState state){
+    Field f;f.validation=state;const Color color=state==ValidationState::None?blend(palette().baseContent,palette().base100,.4f):field_visual(f).border;
+    ImGui::PushStyleColor(ImGuiCol_Text,v(color));ImGui::TextWrapped("%s",text(message));ImGui::PopStyleColor();
 }
 void Divider(const char* label){ImGui::SeparatorText(text(label));}
 void Kbd(const char* shortcut){
@@ -145,11 +139,26 @@ void Stat(const char* label,const char* value,const char* description){
     ImGui::EndGroup();
 }
 void Steps(const char* id,std::span<const char* const> labels,int current){
-    ImGui::PushID(id);
-    // Vertical steps work on touch and narrow sidebars with arbitrary text lengths.
+    ImGui::PushID(id);const float diameter=24.f*scale(),gap=8.f*scale();
+    const float width=std::max(1.f,ImGui::GetContentRegionAvail().x-diameter-gap);
     for(std::size_t i=0;i<labels.size();++i){
-        const bool reached=static_cast<int>(i)<=current;
-        ImGui::TextColored(v(reached?palette().primary:palette().baseContent),"%d. %s",static_cast<int>(i)+1,text(labels[i]));
+        const auto p=ImGui::GetCursorScreenPos();const auto measured=ImGui::CalcTextSize(text(labels[i]),nullptr,false,width);
+        const float h=std::max(diameter,measured.y);const ImVec2 center{p.x+diameter*.5f,p.y+diameter*.5f};
+        const bool complete=static_cast<int>(i)<current,active=static_cast<int>(i)==current;
+        auto* d=ImGui::GetWindowDrawList();const Color color=complete?palette().success:active?palette().primary:palette().base300;
+        if(i+1<labels.size())d->AddLine({center.x,center.y+diameter*.5f},{center.x,p.y+h+ImGui::GetStyle().ItemSpacing.y+diameter*.5f},detail::ink(color),2.f*scale());
+        if(complete||active)d->AddCircleFilled(center,diameter*.5f,detail::ink(color),24);
+        else d->AddCircle(center,diameter*.5f,detail::ink(color),24,1.5f*scale());
+        if(complete){
+            const auto c=detail::ink(palette().base100);
+            d->AddLine({center.x-5.f*scale(),center.y},{center.x-1.f*scale(),center.y+4.f*scale()},c,2.f*scale());
+            d->AddLine({center.x-1.f*scale(),center.y+4.f*scale()},{center.x+6.f*scale(),center.y-4.f*scale()},c,2.f*scale());
+        }else{
+            char number[16];ImFormatString(number,sizeof(number),"%d",static_cast<int>(i)+1);const auto s=ImGui::CalcTextSize(number);
+            d->AddText({center.x-s.x*.5f,center.y-s.y*.5f},detail::ink(active?palette().primaryContent:palette().baseContent),number);
+        }
+        d->AddText(nullptr,ImGui::GetFontSize(),{p.x+diameter+gap,p.y+(h-measured.y)*.5f},ImGui::GetColorU32(ImGuiCol_Text),text(labels[i]),nullptr,width);
+        ImGui::Dummy({diameter+gap+std::min(width,measured.x),h});
     }
     ImGui::PopID();
 }
@@ -185,7 +194,11 @@ bool BeginTable(const char* id,std::span<const TableColumn> columns,TableOptions
     auto flags=options.flags;
     if(options.sortable)flags|=ImGuiTableFlags_Sortable;
     if(options.height>0)flags|=ImGuiTableFlags_ScrollY;
-    if(!ImGui::BeginTable(id,static_cast<int>(columns.size()),flags,{0,options.height}))return false;
+    const auto pending=GImGui->NextWindowData;
+    if(flags&(ImGuiTableFlags_ScrollY|ImGuiTableFlags_ScrollX))ImGui::SetNextWindowChildFlags(ImGuiChildFlags_NavFlattened,true);
+    if(!ImGui::BeginTable(id,static_cast<int>(columns.size()),flags,{0,options.height})){
+        GImGui->NextWindowData=pending;return false;
+    }
     for(std::size_t i=0;i<columns.size();++i){const auto& c=columns[i];
         ImGui::TableSetupColumn(text(c.label),c.flags|(c.width>0?ImGuiTableColumnFlags_WidthFixed:0),c.width,static_cast<ImGuiID>(i));}
     ImGui::TableSetupScrollFreeze(0,1);ImGui::TableHeadersRow();return true;
@@ -194,7 +207,7 @@ void EndTable(){ImGui::EndTable();}
 int VirtualList(const char* id,int count,float height,float rowHeight,RowRenderer render,void* user){
     if(count<=0||!render||!std::isfinite(rowHeight)||rowHeight<=0||!std::isfinite(height)||height<=0)return 0;
     int submitted=0;
-    if(ImGui::BeginChild(id,{0,height},ImGuiChildFlags_Borders)){
+    if(ImGui::BeginChild(id,{0,height},ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened)){
         ImGuiListClipper clip;clip.Begin(count,rowHeight);
         while(clip.Step())for(int row=clip.DisplayStart;row<clip.DisplayEnd;++row){
             ImGui::PushID(row);render(row,user);ImGui::PopID();++submitted;
@@ -207,7 +220,8 @@ bool TreeNode(const char* id,const char* label,bool selected,bool leaf){
     auto flags=ImGuiTreeNodeFlags_OpenOnArrow|ImGuiTreeNodeFlags_OpenOnDoubleClick|ImGuiTreeNodeFlags_SpanAvailWidth;
     if(selected)flags|=ImGuiTreeNodeFlags_Selected;
     if(leaf)flags|=ImGuiTreeNodeFlags_Leaf;
-    return ImGui::TreeNodeEx(id,flags,"%s",text(label));
+    const bool expanded=ImGui::TreeNodeEx(id,flags,"%s",text(label));
+    detail::capture_control();return expanded;
 }
 void EndTreeNode(){ImGui::TreePop();}
 bool BeginSplit(const char* id,float* fraction,ImVec2 size,bool vertical,float minPane){
@@ -233,7 +247,7 @@ bool BeginSplit(const char* id,float* fraction,ImVec2 size,bool vertical,float m
     store->SetVoidPtr(ImGui::GetID("##split_ratio"),fraction);
     if(fraction)*fraction=ratio;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{0,0});
-    return ImGui::BeginChild("##first",first,ImGuiChildFlags_Borders);
+    return ImGui::BeginChild("##first",first,ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened);
 }
 bool NextSplit(){
     ImGui::EndChild();auto* s=ImGui::GetStateStorage();
@@ -245,7 +259,7 @@ bool NextSplit(){
     if(!vertical)ImGui::SameLine(0,0);
     const bool pressed=ImGui::InvisibleButton("##grip",vertical?ImVec2(x,bar):ImVec2(bar,y),ImGuiButtonFlags_EnableNav);
     (void)pressed;
-    if(ImGui::IsItemActive()&&ratio){
+    if(!(GImGui->CurrentItemFlags&ImGuiItemFlags_Disabled)&&ImGui::IsItemActive()&&ratio){
         const float extent=std::max(2.f,(vertical?y:x)-bar);
         const auto delta=ImGui::GetIO().MouseDelta;
         *ratio=std::clamp(*ratio+(vertical?delta.y:delta.x)/extent,lower,1.f-lower);
@@ -256,13 +270,14 @@ bool NextSplit(){
         ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),ink(palette().primary));
     }
     // Arrow keys resize a focused grip, at the same clamp as pointer/touch input.
-    if(ratio&&ImGui::IsItemFocused()){
+    if(!(GImGui->CurrentItemFlags&ImGuiItemFlags_Disabled)&&ratio&&ImGui::IsItemFocused()){
         const auto prev=vertical?ImGuiKey_UpArrow:ImGuiKey_LeftArrow,next=vertical?ImGuiKey_DownArrow:ImGuiKey_RightArrow;
         if(ImGui::IsKeyPressed(prev))*ratio=std::clamp(*ratio-.02f,lower,1.f-lower);
         if(ImGui::IsKeyPressed(next))*ratio=std::clamp(*ratio+.02f,lower,1.f-lower);
     }
+    detail::capture_control();
     if(!vertical)ImGui::SameLine(0,0);
-    return ImGui::BeginChild("##second",vertical?ImVec2(x,std::max(1.f,y-first-bar)):ImVec2(std::max(1.f,x-first-bar),y),ImGuiChildFlags_Borders);
+    return ImGui::BeginChild("##second",vertical?ImVec2(x,std::max(1.f,y-first-bar)):ImVec2(std::max(1.f,x-first-bar),y),ImGuiChildFlags_Borders|ImGuiChildFlags_NavFlattened);
 }
 void EndSplit(){
     ImGui::EndChild();
@@ -300,11 +315,15 @@ bool Range(const char* label,float* low,float* high,float min,float max,Field fi
 }
 bool FileInput(const char* id,const char* name,FilePicker picker,Field field){
     ImGui::PushID(id);Label(id,field.required);
-    Options o;o.size=field.size;o.variant=Variant::Outline;o.state.disabled=field.disabled||field.readOnly||!picker.request;
-    const bool request=Button("Choose file",o);
+    Options o;o.size=field.size;o.variant=Variant::Outline;o.state.disabled=field.disabled||!picker.request;
+    o.state.readOnly=field.readOnly;o.state.loading=field.loading;o.state.invalid=field.invalid||field.validation==ValidationState::Error;
+    if(field.validation==ValidationState::Warning)o.variant=Variant::Warning;
+    if(field.validation==ValidationState::Success)o.variant=Variant::Success;
+    const bool request=Button("Datei auswählen",o);
+    const auto control=GImGui->LastItemData;
     if(name&&*name)ImGui::TextWrapped("%s",name);
-    if(field.help)Validation(field.help,!field.invalid);
-    ImGui::PopID();
+    if(field.help)Validation(field.help,field.invalid?ValidationState::Error:field.validation);
+    GImGui->LastItemData=control;ImGui::PopID();
     if(request)picker.request(picker.user);
     return request;
 }
@@ -334,8 +353,15 @@ void Toasts(const char* id,ToastQueue& queue,double now){
     ImGui::SetNextWindowPos({vp->WorkPos.x+vp->WorkSize.x-margin,vp->WorkPos.y+margin},ImGuiCond_Always,{1,0});
     ImGui::SetNextWindowSize({std::min(360.f*scale(),std::max(1.f,vp->WorkSize.x-margin*2)),0});
     unsigned dismissed=0;
+    // A toast is a transient notification overlay, not the active dialog.
+    // NoFocusOnAppearing alone avoids only the initial focus steal; it still
+    // leaves this top-level overlay eligible for nav-window traversal. That
+    // can trap Tab outside the underlying form after a toast is emitted.
+    // Keep pointer/touch dismissal and the native button, but prevent this
+    // passive overlay from replacing the host's keyboard navigation window.
     if(ImGui::Begin(id,nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoSavedSettings|
-         ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoFocusOnAppearing)){
+         ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoTitleBar|
+         ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoNavFocus)){
         for(const auto& entry:queue.entries()){
             ImGui::PushID(static_cast<int>(entry.id));
             StatusDot(entry.status);ImGui::SameLine();

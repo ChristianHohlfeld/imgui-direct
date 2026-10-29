@@ -66,7 +66,7 @@ if(EMSCRIPTEN)
     "SHELL:-s WASM=1" "SHELL:-s MIN_WEBGL_VERSION=2"
     "SHELL:-s MAX_WEBGL_VERSION=2" "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
-    "SHELL:-s EXPORTED_FUNCTIONS=_main,_mobile_insert_utf8,_mobile_backspace,_mobile_focus,_mobile_control"
+    "SHELL:-s EXPORTED_FUNCTIONS=_main,_mobile_insert_utf8,_mobile_backspace,_mobile_focus,_mobile_control,_gallery_review,_gallery_review_variant"
     "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall")
   set_target_properties(imgui_direct PROPERTIES OUTPUT_NAME index SUFFIX ".html")
 elseif(WIN32)
@@ -108,6 +108,7 @@ elseif(UNIX)
 else()
   message(FATAL_ERROR "Unsupported platform")
 endif()
+target_sources(imgui_direct PRIVATE src/state_gallery.cpp)
 target_link_libraries(imgui_direct PRIVATE ui_foundation)
 target_include_directories(imgui_direct PRIVATE src)
 
@@ -132,8 +133,11 @@ if(UI_BUILD_TESTS AND BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT C
   add_executable(ui_extended_test tests/ui_extended_test.cpp)
   target_link_libraries(ui_extended_test PRIVATE ui_foundation)
   add_test(NAME ui_extended_interactions COMMAND ui_extended_test)
+  add_executable(ui_state_test tests/ui_state_test.cpp src/state_gallery.cpp)
+  target_link_libraries(ui_state_test PRIVATE ui_foundation)
+  add_test(NAME ui_full_state_audit COMMAND ui_state_test)
   # Assertions are the test oracle; keep active in Release, on every compiler.
-  foreach(test_target touch_test utf_test ui_theme_test ui_component_test ui_extended_test)
+  foreach(test_target touch_test utf_test ui_theme_test ui_component_test ui_extended_test ui_state_test)
     if(MSVC)
       target_compile_options(${test_target} PRIVATE /UNDEBUG)
     else()

@@ -2,7 +2,9 @@
 
 **[Open the interactive component gallery](https://christianhohlfeld.github.io/imgui-direct/)** · [Coverage](docs/component-coverage.md) · [Embed in your engine](docs/embedding.md)
 
-Eight live C++/WASM categories: buttons, forms, themes, 100,000-row lists, navigation, data, editor inputs and layouts. The same component library runs natively; GitHub Pages deploys the gallery from `main`.
+The default gallery opens a **48-component state inspector**: semantic states, real hover/press/focus, light/dark, sizes and button variants. [State audit and verification](docs/state-audit.md).
+
+Eight live C++/WASM example categories: buttons, forms, themes, 100,000-row lists, navigation, data, editor inputs and layouts. The same component library runs natively; GitHub Pages deploys the gallery from `main`.
 
 
 **One C++20 application; Dear ImGui as the permanent UI core.** No SDL, GLFW, Sokol, React or additional GUI/runtime libraries. Direct Win32/WGL/OpenGL, X11/GLX/OpenGL, Apple Cocoa/UIKit/Metal, Android NDK/EGL/GLES3, browser Emscripten/WebGL2/WASM.

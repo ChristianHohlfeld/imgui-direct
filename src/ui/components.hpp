@@ -23,6 +23,7 @@ struct Options {
     State state={};
     bool fullWidth=false;
 };
+enum class ValidationState { None, Success, Warning, Error };
 struct Field {
     Size size=Size::MD;
     bool disabled=false;
@@ -30,6 +31,10 @@ struct Field {
     bool invalid=false;
     bool required=false;
     const char* help=nullptr;
+    // Appended for source compatibility with existing aggregate initializers.
+    bool loading=false;
+    ValidationState validation=ValidationState::None;
+    bool indeterminate=false; // Checkbox only; caller clears after a change.
 };
 struct Interaction {
     bool hovered=false; // pointer hover; false on touch after release
@@ -39,6 +44,15 @@ struct Interaction {
     bool disabled=false;
     bool released=false; // button/key release
 };
+struct ControlInfo {
+    Interaction interaction{};
+    ImVec2 minimum{},maximum{};
+    ImGuiID id=0;
+};
+// Most recent library control, captured BEFORE its helper/validation content.
+ControlInfo last_control();
+struct FieldVisual { Color normal,hover,active,border,accent; };
+FieldVisual field_visual(Field field);
 struct ButtonVisual {
     Color normal, hover, pressed, text, border;
     bool outline=false;

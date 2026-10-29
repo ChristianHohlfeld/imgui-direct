@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "state_gallery.hpp"
 #include "ui/theme.hpp"
 #include "ui/scroll.hpp"
 #include "touch_imgui.hpp"
@@ -38,6 +39,24 @@ EM_JS(void, diagnostic_wheel, (float x,float y,float mouseX,float mouseY,int mod
 EM_JS(void, bootstrap_frame_ready, (), {
     const status=document.getElementById('status');
     if(status && status.textContent)status.textContent='';
+});
+
+// QA only: read the completed GPU frame before WebGL discards its back buffer.
+// No work or allocation occurs unless the test runner requests an image.
+EM_JS(void, browser_qa_capture_frame,(),{
+    const request=window.__imguiCaptureRequest;
+    if(!request)return;
+    const canvas=Module.canvas,rect=canvas.getBoundingClientRect();
+    const area=request.clip||{x:0,y:0,width:rect.width,height:rect.height};
+    const sx=Math.max(0,Math.round(area.x*canvas.width/rect.width));
+    const sy=Math.max(0,Math.round(area.y*canvas.height/rect.height));
+    const sw=Math.max(1,Math.min(canvas.width-sx,Math.round(area.width*canvas.width/rect.width)));
+    const sh=Math.max(1,Math.min(canvas.height-sy,Math.round(area.height*canvas.height/rect.height)));
+    const image=window.__imguiCaptureCanvas||(window.__imguiCaptureCanvas=document.createElement('canvas'));
+    image.width=sw;image.height=sh;
+    image.getContext('2d').drawImage(canvas,sx,sy,sw,sh,0,0,sw,sh);
+    window.__imguiCaptureResult={id:request.id,data:image.toDataURL('image/png'),width:sw,height:sh};
+    window.__imguiCaptureRequest=null;
 });
 
 EM_JS(void, browser_qa_state, (int page,int clicks), {
@@ -179,6 +198,7 @@ void frame() {
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     bootstrap_frame_ready();
+    browser_qa_capture_frame();
 }
 }
 int main() {
@@ -223,4 +243,20 @@ extern "C" EMSCRIPTEN_KEEPALIVE void mobile_control(int key) {
     case 38:mapped=ImGuiKey_UpArrow;break;case 40:mapped=ImGuiKey_DownArrow;break;
     case 36:mapped=ImGuiKey_Home;break;case 35:mapped=ImGuiKey_End;break;case 46:mapped=ImGuiKey_Delete;break;}
     if(mapped!=ImGuiKey_None){auto& io=ImGui::GetIO();io.AddKeyEvent(mapped,true);io.AddKeyEvent(mapped,false);}
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void gallery_review(int component,int state,int dark,int size){
+    app::review_configure(component,state,dark,size);
+}
+EM_JS(void, browser_qa_review,(int component,int state,int changes,int hover,int active,int focused,int disabled,float x,float y,float w,float h,float px,float py,float pw,float ph),{
+    window.__imguiReview={time:performance.now(),component,state,changes,hover:!!hover,active:!!active,focused:!!focused,disabled:!!disabled,rect:{x,y,w,h},preview:{x:px,y:py,w:pw,h:ph}};
+});
+
+EM_JS(void, browser_qa_catalog,(int id,const char* name,unsigned states,int interactive),{
+    window.__imguiReviewCatalog=window.__imguiReviewCatalog||[];
+    window.__imguiReviewCatalog[id]={id,name:UTF8ToString(name),states,interactive:!!interactive};
+});
+
+extern "C" EMSCRIPTEN_KEEPALIVE void gallery_review_variant(int variant){
+    review::set_variant(static_cast<ui::Variant>(std::clamp(variant,0,9)));
 }
