@@ -308,8 +308,12 @@ void variant_sample(int i){
             ui::Variant::Success,ui::Variant::Warning,ui::Variant::Error};
         for(int n=0;n<8;++n){
             ImGui::PushID(n);
-            if(n>0&&ImGui::GetCursorPosX()+100.f*s<ImGui::GetWindowContentRegionMax().x)
-                ImGui::SameLine();
+            if(n>0){
+                const float next=ImGui::CalcTextSize(labels[n]).x+22.f*s;
+                const float right=ImGui::GetWindowPos().x+ImGui::GetWindowContentRegionMax().x;
+                if(ImGui::GetItemRectMax().x+ImGui::GetStyle().ItemSpacing.x+next<right)
+                    ImGui::SameLine();
+            }
             ui::Button(labels[n],variants[n]);
             ImGui::PopID();
         }
@@ -318,7 +322,12 @@ void variant_sample(int i){
         const ui::Tone tones[]={ui::Tone::Neutral,ui::Tone::Primary,ui::Tone::Secondary,
             ui::Tone::Info,ui::Tone::Success,ui::Tone::Warning,ui::Tone::Error};
         for(int n=0;n<7;++n){
-            if(n)ImGui::SameLine();
+            if(n){
+                const float next=ImGui::CalcTextSize(labels[n]).x+22.f*s;
+                const float right=ImGui::GetWindowPos().x+ImGui::GetWindowContentRegionMax().x;
+                if(ImGui::GetItemRectMax().x+ImGui::GetStyle().ItemSpacing.x+next<right)
+                    ImGui::SameLine();
+            }
             ui::Badge(labels[n],{tones[n],ui::Surface::Soft});
         }
     }else if(i==31){
@@ -377,6 +386,19 @@ void example_block(const char* title,const char* summary,int i,bool variants,boo
         if(spare>0)ImGui::SetCursorPosX(ImGui::GetCursorPosX()+spare*.5f);
         if(ImGui::BeginChild("##live",{std::min(width,wanted*s),0},
             ImGuiChildFlags_None,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
+            // As on the real docs, short live controls are centered vertically
+            // inside the preview stage; multiline fields retain natural flow.
+            float estimated=0.f;
+            if(i==0)estimated=variants?86.f:ui::control_height(ui::Size::MD)/s;
+            else if(i==30)estimated=variants?54.f:26.f;
+            else if(i==33||i==34||i==40||i==41||i==48||i==49||i==50)
+                estimated=50.f;
+            else if(i==4||i==5||i==6||i==19||i==21||i==37||i==42)
+                estimated=55.f;
+            if(estimated>0.f){
+                const float free=ImGui::GetContentRegionAvail().y-estimated*s;
+                if(free>0)ImGui::SetCursorPosY(ImGui::GetCursorPosY()+free*.5f);
+            }
             if(stateExample)review::preview();
             else if(variants)variant_sample(i);
             else sample(i);

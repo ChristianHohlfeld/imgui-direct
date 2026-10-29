@@ -399,7 +399,6 @@ void app::draw(){
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings);
     ui::Title(d.page==9?"imgui-direct":"Komponenten");
     if(d.page!=9)ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
-    else ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
     space(d.page==9?3.f:8.f);
     const bool pageChanged=gallery_navigation();
     space(d.page==9?3.f:9.f);
