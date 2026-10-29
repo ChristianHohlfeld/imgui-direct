@@ -353,8 +353,15 @@ void Toasts(const char* id,ToastQueue& queue,double now){
     ImGui::SetNextWindowPos({vp->WorkPos.x+vp->WorkSize.x-margin,vp->WorkPos.y+margin},ImGuiCond_Always,{1,0});
     ImGui::SetNextWindowSize({std::min(360.f*scale(),std::max(1.f,vp->WorkSize.x-margin*2)),0});
     unsigned dismissed=0;
+    // A toast is a transient notification overlay, not the active dialog.
+    // NoFocusOnAppearing alone avoids only the initial focus steal; it still
+    // leaves this top-level overlay eligible for nav-window traversal. That
+    // can trap Tab outside the underlying form after a toast is emitted.
+    // Keep pointer/touch dismissal and the native button, but prevent this
+    // passive overlay from replacing the host's keyboard navigation window.
     if(ImGui::Begin(id,nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoSavedSettings|
-         ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoFocusOnAppearing)){
+         ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoTitleBar|
+         ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoNavFocus)){
         for(const auto& entry:queue.entries()){
             ImGui::PushID(static_cast<int>(entry.id));
             StatusDot(entry.status);ImGui::SameLine();
