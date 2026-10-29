@@ -379,8 +379,6 @@ bool draw_index(int* outIndex){
     // A raw ImGui::InputTextWithHint renders on desktop but cannot register
     // the editable rectangle with the browser/mobile IME bridge.
     // The hidden ## label preserves the compact one-line catalogue search.
-    const char previousSearch[128]={0};
-    (void)previousSearch;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{12.f*s,9.f*s});
     const bool modified=ui::Input("##catalog-search",search,sizeof(search),
         "Komponenten suchen ...");
