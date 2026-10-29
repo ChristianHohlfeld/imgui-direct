@@ -388,20 +388,35 @@ void app::draw(){
     auto& io=ImGui::GetIO();
     if(io.DisplaySize.x<=0||io.DisplaySize.y<=0)return;
     const bool narrow=io.DisplaySize.x<760.f;
-    const float width=std::min(io.DisplaySize.x,1080.f);
-    const float x=(io.DisplaySize.x-width)*.5f;
+    const float width=io.DisplaySize.x-safeLeft-safeRight;
+    const float x=safeLeft;
     const float top=safeTop;
     const float height=std::max(175.f,io.DisplaySize.y-top-safeBottom-keyboardHeight);
     ImGui::SetNextWindowPos({x,top},ImGuiCond_Always);
     ImGui::SetNextWindowSize({width,height},ImGuiCond_Always);
+    const auto& palette=ui::palette();
+    if(d.page==9)ImGui::PushStyleColor(ImGuiCol_WindowBg,
+        {palette.base100.r,palette.base100.g,palette.base100.b,1});
     ImGui::Begin("##component-gallery",nullptr,ImGuiWindowFlags_NoTitleBar|
         ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings);
-    ui::Title(d.page==9?"imgui-direct":"Komponenten");
-    if(d.page!=9)ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
-    space(d.page==9?3.f:8.f);
-    const bool pageChanged=gallery_navigation();
-    space(d.page==9?3.f:9.f);
+    if(d.page==9)ImGui::PopStyleColor();
+    bool pageChanged=false;
+    if(d.page==9 && !narrow){
+        ImGui::PushFont(nullptr,25.f*ui::scale());
+        ImGui::TextUnformatted("imgui-direct");
+        ImGui::PopFont();
+        ImGui::SameLine(std::max(260.f*ui::scale(),width*.46f));
+        pageChanged=gallery_navigation();
+        ImGui::Dummy({0,9.f*ui::scale()});
+        ImGui::Separator();
+    }else{
+        ui::Title(d.page==9?"imgui-direct":"Komponenten");
+        if(d.page!=9)ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
+        space(d.page==9?3.f:8.f);
+        pageChanged=gallery_navigation();
+    }
+    space(d.page==9?6.f:9.f);
 #ifdef __EMSCRIPTEN__
     browser_input_frame();
 #endif
