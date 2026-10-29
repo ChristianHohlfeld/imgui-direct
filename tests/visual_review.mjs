@@ -28,6 +28,12 @@ try{
     assert.equal(initialGallery.matching,52,'All 52 components must remain discoverable');
     assert.equal(initialGallery.drawn,1,'The documentation shows one selected component, not a grid of miniatures');
     if(name==='desktop'){
+      // These are actual native C++ tab widgets, not HTML/CSS substitutes.
+      await clickItem(page,1700,false);
+      await page.waitForTimeout(160);
+      await page.screenshot({path:'visual-review/desktop-docs-code.png'});
+      await clickItem(page,1701,false);
+      await page.waitForTimeout(100);
       // The left navigation changes the right-hand documentation content.
       await clickItem(page,1220); // Dropdown is visible in the first sidebar section
       await page.waitForFunction(()=>!!window.__imguiItems?.[1420]);

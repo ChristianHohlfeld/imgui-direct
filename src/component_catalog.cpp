@@ -217,6 +217,40 @@ const char* code_example(int i){
     case 49:return "ui::Rating(\"Bewertung\", &stars, 5, ui::Size::MD);";
     case 50:return "ui::Segmented(\"Ansicht\", labels, &selected);";
     case 51:return "ui::ChatBubble(\"Hallo!\", true, ui::Tone::Primary);";
+    case 8:return "float value=.5f; ui::Number(\"Wert\", &value, .05f, 0.f, 1.f);";
+    case 9:return "int count=2; ui::Integer(\"Anzahl\", &count);";
+    case 10:return "float pos[3]={1,2,3}; ui::Vector3(\"Position\", pos);";
+    case 11:return "float color[4]={.4f,.3f,.9f,1}; ui::ColorEdit(\"Material\", color);";
+    case 12:return "float low=.2f, high=.8f; ui::Range(\"Distanz\", &low, &high, 0.f, 1.f);";
+    case 13:return "ui::FileInput(\"Asset\", \"modell.glb\", {});";
+    case 15:return "ui::NavItem items[]={{\"Szene\"},{\"Assets\"}};\\nui::Navigation(\"nav\", items, &selected);";
+    case 16:return "const char* path[]={\"Projekt\",\"Szene\",\"Aktuell\"};\\nui::Breadcrumbs(\"path\", path, &clicked);";
+    case 17:return "ui::Pagination(\"pages\", 22, 5, &page);";
+    case 18:return "if(ui::Accordion(\"Transform\",0,&expanded)) { /* Inhalt */ }";
+    case 19:return "ui::Collapse(\"Details\", &opened);";
+    case 20:return "if(ui::BeginDropdown(\"Aktionen\")) { ui::MenuItem(\"Öffnen\"); ui::EndDropdown(); }";
+    case 21:return "ui::MenuItem(\"Datei öffnen\", \"Ctrl+O\");";
+    case 22:return "if(ui::BeginContextMenu(\"menu\")) { ui::MenuItem(\"Kopieren\"); ui::EndContextMenu(); }";
+    case 23:return "if(ui::Button(\"Dialog öffnen\")) ui::OpenModal(\"Dialog\");\\nif(ui::BeginModal(\"Dialog\")) { /* Inhalt */ ui::EndModal(); }";
+    case 25:return "ui::BeginFieldset(\"group\", \"Objekte\"); /* Felder */ ui::EndFieldset();";
+    case 26:return "ui::TableColumn columns[]={{\"Objekt\"},{\"Typ\"}};\\nif(ui::BeginTable(\"table\",columns)) { /* Zeilen */ ui::EndTable(); }";
+    case 27:return "if(ui::TreeNode(\"root\",\"Projekt\")) { /* Kinder */ ui::EndTreeNode(); }";
+    case 28:return "ui::VirtualList(\"list\", 10000, 100.f, 24.f, renderRow);";
+    case 29:return "if(ui::BeginSplit(\"split\",&fraction)) { /* links */ }\\nif(ui::NextSplit()) { /* rechts */ } ui::EndSplit();";
+    case 33:return "ui::RadialProgress(\"radial\", .75f, ui::Size::SM);";
+    case 35:return "ui::Skeleton(\"skeleton\", {180,22});";
+    case 36:return "ui::Stat(\"Aktive Objekte\", \"1.024\", \"+12%\");";
+    case 37:return "ui::StatusDot(ui::Status::Success, \"Online\");";
+    case 38:return "const char* steps[]={\"Start\",\"Test\",\"Fertig\"};\\nui::Steps(\"steps\", steps, 1);";
+    case 39:return "ui::TimelineItem(\"Bearbeitet\", \"Heute, 12:00\", ui::Status::Success);";
+    case 40:return "ui::Avatar(\"CH\");";
+    case 41:return "ui::Kbd(\"Ctrl+S\");";
+    case 42:return "ui::Button(\"Zeiger hier\"); ui::Tooltip(\"Hinweis\");";
+    case 43:return "ui::Label(\"Bezeichnung\", true);";
+    case 44:return "ui::Validation(\"Gültiger Wert\", ui::ValidationState::Success);";
+    case 45:return "ui::Divider(\"Abschnitt\");";
+    case 46:return "ui::Heading(\"Überschrift\"); ui::Muted(\"Beschreibung\");";
+    case 47:return "ui::ToastQueue queue;\\nqueue.push(\"Gespeichert\",ui::Status::Success,now,3.0);\\nui::Toasts(\"toast\", queue, now);";
     default:return nullptr;
     }
 }
@@ -455,8 +489,20 @@ void example_block(const ExampleDoc& doc,int i){
     const int current=state->GetInt(tabKey,0);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{0,0});
     if(ImGui::Selectable("Preview##tab",current==0,0,{100.f*s,34.f*s}))state->SetInt(tabKey,0);
+#ifdef __EMSCRIPTEN__
+    if(i==0&&doc.kind==ExampleKind::Sizes){
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        browser_qa_item(1701,a.x,a.y,b.x-a.x,b.y-a.y);
+    }
+#endif
     ImGui::SameLine(0,0);
     if(ImGui::Selectable("C++##tab",current==1,0,{74.f*s,34.f*s}))state->SetInt(tabKey,1);
+#ifdef __EMSCRIPTEN__
+    if(i==0&&doc.kind==ExampleKind::Sizes){
+        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        browser_qa_item(1700,a.x,a.y,b.x-a.x,b.y-a.y);
+    }
+#endif
     ImGui::PopStyleVar();
     const int mode=state->GetInt(tabKey,0);
     const float height=(doc.kind==ExampleKind::Colors?195.f:
@@ -580,21 +626,6 @@ void draw_details(){
     if(next!=static_cast<int>(review::selected_state()))
         review::select(chosen,static_cast<review::State>(next));
     example_block({"State preview","Echter ImGui-Zustand, keine Bildsimulation.",ExampleKind::State},chosen);
-    const char* code=code_example(chosen);
-    if(code){
-        ImGui::Dummy({0,16.f*s});
-        ImGui::PushFont(nullptr,18.f*s);
-        ImGui::TextUnformatted("C++");
-        ImGui::PopFont();
-        ImGui::PushStyleColor(ImGuiCol_ChildBg,
-            {ui::palette().base300.r,ui::palette().base300.g,ui::palette().base300.b,1});
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,ui::palette().metrics.radiusBox*s);
-        if(ImGui::BeginChild("##code",{0,88.f*s},ImGuiChildFlags_None,
-                             ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
-            ImGui::TextWrapped("%s",code);
-        }
-        ImGui::EndChild();ImGui::PopStyleVar();ImGui::PopStyleColor();
-    }
     ImGui::Dummy({0,20.f*s});
     ui::Options detail;detail.size=ui::Size::SM;detail.variant=ui::Variant::Outline;
     const bool inspect=ui::Button("Alle Zustände detailliert prüfen",detail);
