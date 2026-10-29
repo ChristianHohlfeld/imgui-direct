@@ -28,6 +28,24 @@ try{
     assert.equal(initialGallery.matching,52,'All 52 catalogue entries must be discoverable');
     assert(initialGallery.drawn>0&&initialGallery.drawn<52,
       'Gallery must virtualize invisible preview cards: '+JSON.stringify(initialGallery));
+    if(name==='mobile'){
+      // The gallery search is a REAL mobile-editable C++ field. Touch must
+      // focus the shared native IME bridge; filtering must update the gallery.
+      const field=await page.evaluate(()=>window.__imguiInputRegions?.[0]);
+      assert(field&&field.width>100,'Catalog search must expose a native IME field');
+      await page.touchscreen.tap(field.x+Math.min(35,field.width/2),field.y+field.height/2);
+      await page.waitForTimeout(200);
+      assert(await page.evaluate(()=>document.activeElement?.id==='native-input'),
+        'Catalog search must focus native keyboard bridge');
+      await page.evaluate(()=>{
+        const e=document.getElementById('native-input');
+        e.value='Button';
+        e.dispatchEvent(new Event('input',{bubbles:true}));
+      });
+      await page.waitForFunction(()=>window.__imguiGallery?.matching>0&&window.__imguiGallery.matching<52);
+      await page.screenshot({path:'visual-review/mobile-catalog-search-ime.png'});
+      await page.evaluate(()=>document.getElementById('native-input').blur());
+    }
     if(name==='desktop'){
       await clickItem(page,1004);
       await page.waitForFunction(()=>window.__imguiGallery?.filter===4&&window.__imguiGallery.matching>0);
