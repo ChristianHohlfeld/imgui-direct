@@ -37,6 +37,30 @@ int main(){
             assert(diff(invalid.border,ui::palette().error)<.001f);
         }
     }
+
+    // Regression: button captions are emitted as opaque native ImGui glyphs.
+    // Previously the native glyphs were alpha=0 and a separately clipped
+    // overlay could vanish when parent/child lists were scrolled.
+    ui::set_mode(ui::Mode::Light);ui::begin_frame();
+    auto& io=ImGui::GetIO();io.DisplaySize={640,480};io.DeltaTime=1.f/60.f;
+    ImGui::NewFrame();ImGui::SetNextWindowSize({600,420});ImGui::Begin("button-label-test");
+    const auto normalVisual=ui::button_visual({});
+    const ImU32 captionInk=ImGui::GetColorU32(ImVec4{
+        normalVisual.text.r,normalVisual.text.g,normalVisual.text.b,normalVisual.text.a});
+    const int first=ImGui::GetWindowDrawList()->VtxBuffer.Size;
+    ui::Button("Visible native button label");
+    const auto& vertices=ImGui::GetWindowDrawList()->VtxBuffer;
+    int opaqueGlyphVertices=0;
+    for(int i=first;i<vertices.Size;++i)
+        if(vertices[i].col==captionInk)++opaqueGlyphVertices;
+    assert(opaqueGlyphVertices>=4*10 && "button must render its native text with nonzero alpha");
+    const int beforeLong=vertices.Size;
+    ui::Button("This is a very long native button label that requires clipping",{}, {80.f,0.f});
+    int clippedCaptionVertices=0;
+    for(int i=beforeLong;i<vertices.Size;++i)
+        if(vertices[i].col==captionInk)++clippedCaptionVertices;
+    assert(clippedCaptionVertices>0 && "truncated caption must remain visible");
+    ImGui::End();ImGui::Render();
     ui::set_touch(true);
     assert(ui::control_height(ui::Size::XS)>=44.f);
     assert(ui::control_height(ui::Size::MD)>=48.f);

@@ -83,6 +83,11 @@ try{
         const stats=await page.evaluate(()=>({rows:window.__imguiScroll.rowsRendered,moved:(window.__imguiScrollTotal||0)}));
         assert(stats.rows>0&&stats.rows<100,`Virtual list should clip: ${JSON.stringify(stats)}`);
         assert(stats.moved>before,'Virtual list must scroll');
+        // Regression capture: after a real wheel gesture inside the 100k-row
+        // native list, toolbar labels and unrelated action captions must
+        // remain visible. Inspect this rendered PNG alongside catalog shots.
+        if(name==='desktop'||name==='mobile')
+          await page.screenshot({path:`visual-review/${name}-list-after-scroll.png`});
       }
     }
     await clickItem(page,0,touch);await page.waitForTimeout(150);
