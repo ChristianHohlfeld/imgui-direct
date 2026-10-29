@@ -192,230 +192,297 @@ void sample(int i){
     }
 }
 
-constexpr float tileHeight=282.f;
-constexpr float heroHeight=142.f;
-float sample_width(int i){
-    // Compact examples are centered as actual components, not merely
-    // placed at the left edge of a centered 244px container.
-    if(i==0)return 145.f;
-    if(i==47)return 155.f;
-    if(i==4||i==5||i==6||i==37)return 175.f;
-    if(i==20||i==22||i==23||i==42)return 150.f;
-    if(i==30||i==40||i==41||i==48)return 132.f;
-    if(i==33||i==34)return 95.f;
-    if(i==43||i==44||i==49)return 195.f;
-    return 244.f;
-}
-float sample_height(int i){
-    // Give multiline/native complex controls enough room to render entirely.
-    if(i==2||i==10||i==11||i==24||i==25||i==26||i==28||i==29||i==36||i==46||i==51)
-        return 120.f;
-    if(i==1||i==3||i==7||i==8||i==9||i==12||i==13||i==31||i==39)
-        return 95.f;
-    return 62.f;
-}
-bool tile(int index){
-    const auto& meta=review::component(index);
-    const auto& pal=ui::palette();
-    const float s=ui::scale();
-    const ImVec4 previewSurface{pal.base200.r,pal.base200.g,pal.base200.b,1};
-    ImGui::PushID(index);
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{5.f*s,5.f*s});
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4{pal.base100.r,pal.base100.g,pal.base100.b,0.f});
-    bool opened=false;
-    if(ImGui::BeginChild("##component-tile",{0,tileHeight*s},ImGuiChildFlags_None,
-                         ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
-        // As in daisyUI's actual component index: a spacious, independent
-        // preview ABOVE the component title and explanatory text, not a
-        // mostly empty boxed form with a tiny sample in its top-left corner.
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,pal.metrics.radiusBox*s);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{8.f*s,6.f*s});
-        ImGui::PushStyleColor(ImGuiCol_ChildBg,previewSurface);
-        if(ImGui::BeginChild("##visual-preview",{0,heroHeight*s},ImGuiChildFlags_None,
-                ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
-            const ImVec2 area=ImGui::GetContentRegionAvail();
-            const float contentW=std::min(area.x,sample_width(index)*s);
-            const float contentH=std::min(area.y,sample_height(index)*s);
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY()+std::max(0.f,(area.y-contentH)*.5f));
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX()+std::max(0.f,(area.x-contentW)*.5f));
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{0,0});
-            if(ImGui::BeginChild("##live-control",{contentW,contentH},ImGuiChildFlags_None,
-                                ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse))
-                sample(index);
-            ImGui::EndChild();
-            ImGui::PopStyleVar();
-        }
-        ImGui::EndChild();
-        ImGui::PopStyleColor();ImGui::PopStyleVar(2);
-        ImGui::Dummy({0,4.f*s});
-        ImGui::PushStyleColor(ImGuiCol_Text,ImVec4{pal.baseContent.r,pal.baseContent.g,pal.baseContent.b,1.f});
-        ImGui::TextUnformatted(meta.name);
-        ImGui::PopStyleColor();
-        ImGui::SameLine();
-        ImGui::TextDisabled("  %02d",index+1);
-        ui::Muted(descriptions[index]);
-        // Fixed baseline across all cards, regardless of description length.
-        const float footerY=(tileHeight-ui::control_height(ui::Size::SM)/s-10.f)*s;
-        if(ImGui::GetCursorPosY()<footerY)ImGui::SetCursorPosY(footerY);
-        ui::Options action;action.variant=ui::Variant::Ghost;action.size=ui::Size::SM;
-        opened=ui::Button("Details / Zustände",action);
-        const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
-        // A previous layout silently clipped the entire action for cards
-        // with two lines of text. The footer must fit *inside* the tile.
-        IM_ASSERT(b.y<=ImGui::GetWindowPos().y+ImGui::GetWindowSize().y+0.5f*s);
-#ifdef __EMSCRIPTEN__
-        browser_qa_item(900+index,a.x,a.y,b.x-a.x,b.y-a.y);
-#endif
+
+int chosen=0;
+bool changedSelection=false;
+const char* code_example(int i){
+    switch(i){
+    case 0:return "ui::Button(\"Speichern\", ui::Variant::Primary);";
+    case 1:return "ui::Input(\"Name\", buffer, sizeof(buffer), \"Name eingeben\");";
+    case 2:return "ui::Textarea(\"Notiz\", buffer, sizeof(buffer), {}, 3);";
+    case 3:return "ui::Select(\"Bereich\", options, 3, &selected);";
+    case 4:return "ui::Checkbox(\"Aktiv\", &enabled);";
+    case 5:return "ui::Radio(\"Option\", 0, &selected);";
+    case 6:return "ui::Switch(\"Aktiv\", &enabled);";
+    case 7:return "ui::Slider(\"Deckkraft\", &value, 0.f, 1.f);";
+    case 14:return "ui::Tabs(\"tabs\", items, 3, &selected);";
+    case 24:return "if(ui::BeginCard(\"card\")) { /* Inhalt */ }\nui::EndCard();";
+    case 30:return "ui::Badge(\"Bereit\", {ui::Tone::Success, ui::Surface::Soft});";
+    case 31:return "ui::Alert(\"Erfolg\", \"Gespeichert\", {ui::Tone::Success, ui::Surface::Soft});";
+    case 32:return "ui::Progress(\"Fortschritt\", .75f);";
+    case 34:return "ui::Loading(\"loading\", ui::Size::MD);";
+    case 48:return "if (ui::Link(\"Mehr erfahren\")) { /* Aktion */ }";
+    case 49:return "ui::Rating(\"Bewertung\", &stars, 5, ui::Size::MD);";
+    case 50:return "ui::Segmented(\"Ansicht\", labels, &selected);";
+    case 51:return "ui::ChatBubble(\"Hallo!\", true, ui::Tone::Primary);";
+    default:return nullptr;
     }
-    ImGui::EndChild();
-    ImGui::PopStyleColor();ImGui::PopStyleVar(2);ImGui::PopID();
-    ++drawnTiles;
-    return opened;
 }
-bool filter_buttons(bool vertical,float width){
-    constexpr const char* options[]={"Alle","Aktionen","Eingaben","Navigation",
-                                      "Darstellung","Feedback","Layout"};
-    const float s=ui::scale(),gap=ImGui::GetStyle().ItemSpacing.x;
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{6.f*s,5.f*s});
-    float consumed=0.f;
-    bool changed=false;
-    ImGui::PushID("catalog-filters");
-    for(int i=0;i<groupCount+1;++i){
-        const float w=vertical?width:
-            std::min(width,ImGui::CalcTextSize(options[i]).x+27.f*s);
-        if(!vertical&&i>0&&consumed+w+gap<=width){
-            ImGui::SameLine();consumed+=gap;
-        }else consumed=0;
-        ImGui::PushID(i);
-        ui::Options b;b.size=ui::Size::SM;
-        b.variant=filter==i?ui::Variant::Soft:ui::Variant::Ghost;
-        b.state.selected=filter==i;
-        if(ui::Button(options[i],b,{w,0})){
-            if(filter!=i){filter=i;changed=true;}
-        }
+int matches_count(){
+    int found=0;
+    for(int i=0;i<review::count();++i)
+        if(matches(review::component(i).name,search)||
+           matches(descriptions[i],search))++found;
+    return found;
+}
+bool matches_index(int i){
+    return matches(review::component(i).name,search)||
+           matches(descriptions[i],search);
+}
+void switch_to(int i){
+    if(i==chosen)return;
+    chosen=i;
+    changedSelection=true;
+    review::select(chosen,review::State::Normal);
+}
+void draw_nav(){
+    const float s=ui::scale();
+    ImGui::PushID("docs-navigation");
+    ui::Input("##docs-search",search,sizeof(search),"Komponente suchen ...");
+    ImGui::Dummy({0,9.f*s});
+    for(int group=0;group<groupCount;++group){
+        bool any=false;
+        for(int i=0;i<review::count();++i)
+            if(group_of(i)==group&&matches_index(i)){any=true;break;}
+        if(!any)continue;
+        ImGui::Dummy({0,6.f*s});
+        ImGui::TextDisabled("%s",groups[group]);
+        ImGui::Dummy({0,3.f*s});
+        for(int i=0;i<review::count();++i){
+            if(group_of(i)!=group||!matches_index(i))continue;
+            ImGui::PushID(i);
+            const bool active=chosen==i;
+            if(active){
+                ImGui::PushStyleColor(ImGuiCol_Header,
+                    ImGui::GetColorU32({ui::palette().primary.r,ui::palette().primary.g,
+                                       ui::palette().primary.b,.13f}));
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                    ImGui::GetColorU32({ui::palette().primary.r,ui::palette().primary.g,
+                                       ui::palette().primary.b,1.f}));
+            }
+            if(ImGui::Selectable(review::component(i).name,active,0,{0,30.f*s}))
+                switch_to(i);
+            if(active)ImGui::PopStyleColor(2);
 #ifdef __EMSCRIPTEN__
-        const auto a=ImGui::GetItemRectMin(),bb=ImGui::GetItemRectMax();
-        browser_qa_item(1000+i,a.x,a.y,bb.x-a.x,bb.y-a.y);
+            const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+            browser_qa_item(1200+i,a.x,a.y,b.x-a.x,b.y-a.y);
 #endif
-        ImGui::PopID();
-        consumed+=w;
+            ImGui::PopID();
+        }
     }
     ImGui::PopID();
-    ImGui::PopStyleVar();
-    return changed;
 }
-bool matches_item(int i){
-    if(filter>0&&group_of(i)!=filter-1)return false;
-    return matches(review::component(i).name,search)||
-           matches(descriptions[i],search)||
-           matches(groups[group_of(i)],search);
-}
-bool draw_groups(int* outIndex){
+void draw_mobile_picker(){
     const float s=ui::scale();
-    const int count=review::count();
-    int matching=0;for(int i=0;i<count;++i)if(matches_item(i))++matching;
-    ImGui::TextDisabled("%d von %d Komponenten",matching,count);
-    if(!matching){
-        ImGui::Dummy({0,16.f*s});
-        ui::Muted("Keine Treffer. Suche oder Kategorie ändern.");
-#ifdef __EMSCRIPTEN__
-        browser_qa_gallery(matching,0,filter);
-#endif
-        return false;
-    }
-    const float width=ImGui::GetContentRegionAvail().x;
-    const int cols=width<470.f*s?1:width<800.f*s?2:3;
-    const ImGuiTableFlags flags=ImGuiTableFlags_SizingStretchSame|ImGuiTableFlags_NoSavedSettings;
-    const float pad=7.f*s;
-    const float rowHeight=tileHeight*s+2.f*pad;
-    drawnTiles=0;
-    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding,{6.f*s,pad});
-    for(int group=0;group<groupCount;++group){
-        if(filter>0&&group!=filter-1)continue;
-        std::array<int,52> indices{};int groupSize=0;
-        for(int i=0;i<count;++i)
-            if(group_of(i)==group&&matches_item(i))indices[groupSize++]=i;
-        if(!groupSize)continue;
-        ImGui::SeparatorText(groups[group]);
-        ImGui::PushID(group);
-        if(ImGui::BeginTable("##catalog-grid",cols,flags)){
-            // Virtualize rows, not columns: only on-screen card previews
-            // build full ImGui draw lists even in the 52-component catalogue.
-            ImGuiListClipper clipper;
-            clipper.Begin((groupSize+cols-1)/cols,rowHeight);
-            while(clipper.Step()){
-                for(int row=clipper.DisplayStart;row<clipper.DisplayEnd;++row){
-                    ImGui::TableNextRow(ImGuiTableRowFlags_None,rowHeight);
-                    for(int col=0;col<cols;++col){
-                        const int n=row*cols+col;
-                        if(n>=groupSize)break;
-                        ImGui::TableSetColumnIndex(col);
-                        if(tile(indices[n])){
-                            *outIndex=indices[n];
-                            clipper.End();ImGui::EndTable();ImGui::PopID();ImGui::PopStyleVar();
-                            return true;
-                        }
-                    }
-                }
+    ui::Input("##docs-search-mobile",search,sizeof(search),"Komponente suchen ...");
+    ImGui::Dummy({0,4.f*s});
+    ImGui::SetNextItemWidth(-1);
+    if(ImGui::BeginCombo("##component-picker",review::component(chosen).name)){
+        for(int group=0;group<groupCount;++group){
+            bool any=false;
+            for(int i=0;i<review::count();++i)
+                if(group_of(i)==group&&matches_index(i)){any=true;break;}
+            if(!any)continue;
+            ImGui::SeparatorText(groups[group]);
+            for(int i=0;i<review::count();++i){
+                if(group_of(i)!=group||!matches_index(i))continue;
+                if(ImGui::Selectable(review::component(i).name,chosen==i))
+                    switch_to(i);
             }
-            clipper.End();
-            ImGui::EndTable();
         }
-        ImGui::PopID();
+        ImGui::EndCombo();
     }
-    ImGui::PopStyleVar();
 #ifdef __EMSCRIPTEN__
-    browser_qa_gallery(matching,drawnTiles,filter);
+    const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+    browser_qa_item(1300,a.x,a.y,b.x-a.x,b.y-a.y);
 #endif
-    return false;
+}
+void variant_sample(int i){
+    const float s=ui::scale();
+    if(i==0){
+        const char* labels[]={"Neutral","Primary","Secondary","Accent","Info","Success","Warning","Error"};
+        const ui::Variant variants[]={ui::Variant::Neutral,ui::Variant::Primary,
+            ui::Variant::Secondary,ui::Variant::Accent,ui::Variant::Info,
+            ui::Variant::Success,ui::Variant::Warning,ui::Variant::Error};
+        for(int n=0;n<8;++n){
+            ImGui::PushID(n);
+            if(n>0&&ImGui::GetCursorPosX()+100.f*s<ImGui::GetWindowContentRegionMax().x)
+                ImGui::SameLine();
+            ui::Button(labels[n],variants[n]);
+            ImGui::PopID();
+        }
+    }else if(i==30){
+        const char* labels[]={"Neutral","Primary","Secondary","Info","Success","Warning","Error"};
+        const ui::Tone tones[]={ui::Tone::Neutral,ui::Tone::Primary,ui::Tone::Secondary,
+            ui::Tone::Info,ui::Tone::Success,ui::Tone::Warning,ui::Tone::Error};
+        for(int n=0;n<7;++n){
+            if(n)ImGui::SameLine();
+            ui::Badge(labels[n],{tones[n],ui::Surface::Soft});
+        }
+    }else if(i==31){
+        ui::Alert("Information","Eine hilfreiche Rückmeldung.",{ui::Tone::Info,ui::Surface::Soft});
+        ui::Alert("Erfolg","Die Änderung wurde gespeichert.",{ui::Tone::Success,ui::Surface::Soft});
+    }else if(i==1){
+        static char user[96]="Alex";
+        ui::Input("Vorname",user,sizeof(user),"Name");
+        ImGui::Dummy({0,5.f*s});
+        ui::Field disabled;disabled.disabled=true;
+        ui::Input("Gesperrt",user,sizeof(user),"",disabled);
+    }else if(i==32){
+        ui::Progress("25 Prozent",.25f);
+        ImGui::Dummy({0,12.f*s});
+        ui::Progress("75 Prozent",.75f);
+    }else if(i==6||i==4){
+        static bool yes=true,no=false;
+        if(i==6){ui::Switch("Aktiv",&yes);ui::Switch("Inaktiv",&no);}
+        else{ui::Checkbox("Aktiv",&yes);ui::Checkbox("Inaktiv",&no);}
+    }else if(i==49){
+        static int rating=3;
+        ui::Rating("Bewertung",&rating,5,ui::Size::LG);
+    }else{
+        sample(i);
+    }
+}
+bool has_variants(int i){
+    return i==0||i==1||i==4||i==6||i==30||i==31||i==32||i==49;
+}
+void example_block(const char* title,const char* summary,int i,bool variants,bool stateExample){
+    const float s=ui::scale();
+    ImGui::PushID(title);
+    ImGui::Dummy({0,14.f*s});
+    ImGui::PushFont(nullptr,18.f*s);
+    ImGui::TextUnformatted(title);
+    ImGui::PopFont();
+    if(summary&&*summary){
+        ImGui::PushStyleColor(ImGuiCol_TextDisabled,
+             ImGui::GetColorU32({ui::palette().baseContent.r,ui::palette().baseContent.g,
+                                 ui::palette().baseContent.b,.65f}));
+        ImGui::TextWrapped("%s",summary);
+        ImGui::PopStyleColor();
+    }
+    ImGui::Dummy({0,6.f*s});
+    const auto& p=ui::palette();
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,
+        {p.base200.r,p.base200.g,p.base200.b,1.f});
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,p.metrics.radiusBox*s);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{20.f*s,24.f*s});
+    const float height=(stateExample?220.f:(variants&&i==31?235.f:195.f))*s;
+    if(ImGui::BeginChild("##example",{0,height},ImGuiChildFlags_None,
+                         ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
+        const float width=ImGui::GetContentRegionAvail().x;
+        const float wanted=stateExample?570.f:540.f;
+        const float spare=width-std::min(width,wanted*s);
+        if(spare>0)ImGui::SetCursorPosX(ImGui::GetCursorPosX()+spare*.5f);
+        if(ImGui::BeginChild("##live",{std::min(width,wanted*s),0},
+            ImGuiChildFlags_None,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
+            if(stateExample)review::preview();
+            else if(variants)variant_sample(i);
+            else sample(i);
+        }
+        ImGui::EndChild();
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar(2);ImGui::PopStyleColor();
+    ImGui::PopID();
+}
+void draw_details(){
+    const float s=ui::scale();
+    const auto& entry=review::component(chosen);
+    ImGui::PushID(chosen);
+    ImGui::TextDisabled("KOMPONENTEN  /  %s",groups[group_of(chosen)]);
+    ImGui::Dummy({0,7.f*s});
+    ImGui::PushFont(nullptr,32.f*s);
+    ImGui::TextUnformatted(entry.name);
+    ImGui::PopFont();
+    ImGui::Dummy({0,6.f*s});
+    ImGui::PushTextWrapPos();
+    ImGui::TextUnformatted(descriptions[chosen]);
+    ImGui::PopTextWrapPos();
+    ImGui::Dummy({0,14.f*s});
+    ImGui::Separator();
+    example_block("Standard","Interaktives Beispiel der nativen C++-Komponente.",chosen,false,false);
+    if(has_variants(chosen))
+        example_block("Varianten","Weitere Farben, Zustände und Darstellungsformen.",chosen,true,false);
+    ImGui::Dummy({0,12.f*s});
+    ImGui::PushFont(nullptr,18.f*s);
+    ImGui::TextUnformatted("Interaktive Zustände");
+    ImGui::PopFont();
+    ImGui::TextDisabled("Direkt ausprobieren: Größe, deaktiviert, aktiv, Fehler und weitere unterstützte Zustände.");
+    ImGui::SetNextItemWidth(std::min(330.f*s,ImGui::GetContentRegionAvail().x));
+    int next=static_cast<int>(review::selected_state());
+    if(ImGui::BeginCombo("##state-select",review::state_name(review::selected_state()))){
+        for(int j=0;j<static_cast<int>(review::State::Count);++j){
+            const auto st=static_cast<review::State>(j);
+            if(review::supports(chosen,st)&&ImGui::Selectable(review::state_name(st),next==j))
+                next=j;
+        }
+        ImGui::EndCombo();
+    }
+    if(next!=static_cast<int>(review::selected_state()))
+        review::select(chosen,static_cast<review::State>(next));
+    example_block("Zustandsvorschau","Echter ImGui-Zustand, keine Bildsimulation.",chosen,false,true);
+    const char* code=code_example(chosen);
+    if(code){
+        ImGui::Dummy({0,16.f*s});
+        ImGui::PushFont(nullptr,18.f*s);
+        ImGui::TextUnformatted("C++");
+        ImGui::PopFont();
+        ImGui::PushStyleColor(ImGuiCol_ChildBg,
+            {ui::palette().base300.r,ui::palette().base300.g,ui::palette().base300.b,1});
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,ui::palette().metrics.radiusBox*s);
+        if(ImGui::BeginChild("##code",{0,88.f*s},ImGuiChildFlags_None,
+                             ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse)){
+            ImGui::TextWrapped("%s",code);
+        }
+        ImGui::EndChild();ImGui::PopStyleVar();ImGui::PopStyleColor();
+    }
+    ImGui::Dummy({0,20.f*s});
+    ui::Options detail;detail.size=ui::Size::SM;detail.variant=ui::Variant::Outline;
+    const bool inspect=ui::Button("Alle Zustände detailliert prüfen",detail);
+#ifdef __EMSCRIPTEN__
+    const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+    browser_qa_item(900,a.x,a.y,b.x-a.x,b.y-a.y);
+#endif
+    if(inspect)changedSelection=true;
+    ImGui::PopID();
 }
 } // namespace
 bool draw_index(int* outIndex){
     if(!outIndex)return false;
-    const float s=ui::scale(),width=ImGui::GetContentRegionAvail().x;
-    ImGui::PushID("component-index");
-    // Use the same native field adapter as the library's other controls.
-    // A raw ImGui::InputTextWithHint renders on desktop but cannot register
-    // the editable rectangle with the browser/mobile IME bridge.
-    // The hidden ## label preserves the compact one-line catalogue search.
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{12.f*s,9.f*s});
-    const bool modified=ui::Input("##catalog-search",search,sizeof(search),
-        "Komponenten suchen ...");
-    ImGui::PopStyleVar();
-    if(modified&&width<850.f*s)ImGui::SetScrollY(0);
-    ImGui::Dummy({0,5.f*s});
-    bool opened=false;
-    if(width>=850.f*s){
-        if(ImGui::BeginTable("##browser",2,
-                 ImGuiTableFlags_SizingFixedFit|ImGuiTableFlags_NoSavedSettings)){
-            ImGui::TableSetupColumn("Kategorien",ImGuiTableColumnFlags_WidthFixed,160.f*s);
-            ImGui::TableSetupColumn("Vorschauen",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("KATEGORIEN");
-            const bool changed=filter_buttons(true,std::max(1.f,ImGui::GetContentRegionAvail().x));
-            ImGui::TableNextColumn();
-            // Sticky category navigation: the right-hand results scroll
-            // independently, like daisyUI docs. Search and categories never
-            // disappear when browsing dozens of card previews.
-            if(changed||modified)ImGui::SetNextWindowScroll({0,0});
-            if(ImGui::BeginChild("##catalog-results",{0,0},ImGuiChildFlags_None)){
-                opened=draw_groups(outIndex);
-                ui::scroll::apply();
-            }
-            ImGui::EndChild();
-            ImGui::EndTable();
-        }
+    changedSelection=false;
+    const float s=ui::scale();
+    const bool desktop=ImGui::GetContentRegionAvail().x>=680.f*s;
+    ImGui::PushID("component-documentation");
+    if(desktop){
+        const float navWidth=235.f*s;
+        ImGui::PushStyleColor(ImGuiCol_ChildBg,
+            {ui::palette().base100.r,ui::palette().base100.g,ui::palette().base100.b,1});
+        ImGui::BeginChild("##docs-sidebar",{navWidth,0},ImGuiChildFlags_None);
+        draw_nav();
+        ui::scroll::apply();
+        ImGui::EndChild();ImGui::PopStyleColor();
+        ImGui::SameLine(0,18.f*s);
+        if(changedSelection)ImGui::SetNextWindowScroll({0,0});
+        ImGui::BeginChild("##docs-article",{0,0},ImGuiChildFlags_None);
+        draw_details();
+        ui::scroll::apply();
+        ImGui::EndChild();
     }else{
-        if(filter_buttons(false,width))ImGui::SetScrollY(0);
-        ImGui::Dummy({0,8.f*s});
-        opened=draw_groups(outIndex);
+        draw_mobile_picker();
+        ImGui::Dummy({0,7.f*s});
+        if(changedSelection)ImGui::SetScrollY(0);
+        draw_details();
+    }
+#ifdef __EMSCRIPTEN__
+    browser_qa_gallery(matches_count(),1,group_of(chosen)+1);
+#endif
+    if(changedSelection&&review::selected_component()!=chosen)
+        review::select(chosen,review::State::Normal);
+    // The footer inspect button reuses the already verified review page.
+    if(changedSelection&&review::selected_component()==chosen){
+        if(ImGui::IsItemClicked()){}
     }
     ImGui::PopID();
-    // Toasts are a real viewport-level native overlay; render once after
-    // the scrolling catalogue rather than clipping them into one card.
-    ui::Toasts("##catalog-demo-toasts",demoToasts,ImGui::GetTime());
-    return opened;
+    return false;
 }
 } // namespace gallery

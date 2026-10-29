@@ -397,8 +397,8 @@ void app::draw(){
     ImGui::Begin("##component-gallery",nullptr,ImGuiWindowFlags_NoTitleBar|
         ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings);
-    ui::Title("Komponenten");
-    if(d.page==9)ui::Muted(narrow?"52 native C++-Komponenten":"52 native C++-Komponenten. Live ansehen und direkt ausprobieren.");
+    ui::Title(d.page==9?"imgui-direct":"Komponenten");
+    if(d.page!=9)ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
     else ui::Muted("Einfach. Einheitlich. Für alle Bildschirme.");
     space(d.page==9?3.f:8.f);
     const bool pageChanged=gallery_navigation();
