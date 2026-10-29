@@ -195,6 +195,7 @@ void sample(int i){
 
 int chosen=0;
 bool changedSelection=false;
+bool inspectRequested=false;
 const char* code_example(int i){
     switch(i){
     case 0:return "ui::Button(\"Speichern\", ui::Variant::Primary);";
@@ -443,13 +444,14 @@ void draw_details(){
     const auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
     browser_qa_item(900,a.x,a.y,b.x-a.x,b.y-a.y);
 #endif
-    if(inspect)changedSelection=true;
+    if(inspect)inspectRequested=true;
     ImGui::PopID();
 }
 } // namespace
 bool draw_index(int* outIndex){
     if(!outIndex)return false;
     changedSelection=false;
+    inspectRequested=false;
     const float s=ui::scale();
     const bool desktop=ImGui::GetContentRegionAvail().x>=680.f*s;
     ImGui::PushID("component-documentation");
@@ -476,13 +478,8 @@ bool draw_index(int* outIndex){
 #ifdef __EMSCRIPTEN__
     browser_qa_gallery(matches_count(),1,group_of(chosen)+1);
 #endif
-    if(changedSelection&&review::selected_component()!=chosen)
-        review::select(chosen,review::State::Normal);
-    // The footer inspect button reuses the already verified review page.
-    if(changedSelection&&review::selected_component()==chosen){
-        if(ImGui::IsItemClicked()){}
-    }
     ImGui::PopID();
+    if(inspectRequested){*outIndex=chosen;return true;}
     return false;
 }
 } // namespace gallery

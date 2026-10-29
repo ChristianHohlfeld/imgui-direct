@@ -25,9 +25,17 @@ try{
     if(name==='desktop'||name==='mobile'||name==='ipad')
       await page.screenshot({path:`visual-review/${name}-catalog-light.png`});
     const initialGallery=await page.evaluate(()=>window.__imguiGallery);
-    assert.equal(initialGallery.matching,52,'All 52 catalogue entries must be discoverable');
-    assert(initialGallery.drawn>0&&initialGallery.drawn<52,
-      'Gallery must virtualize invisible preview cards: '+JSON.stringify(initialGallery));
+    assert.equal(initialGallery.matching,52,'All 52 components must remain discoverable');
+    assert.equal(initialGallery.drawn,1,'The documentation shows one selected component, not a grid of miniatures');
+    if(name==='desktop'){
+      // The left navigation changes the right-hand documentation content.
+      await clickItem(page,1218);
+      await page.waitForFunction(()=>window.__imguiGallery?.filter===4);
+      await page.screenshot({path:'visual-review/desktop-docs-accordion.png'});
+      await clickItem(page,1200);
+      await page.waitForFunction(()=>window.__imguiGallery?.filter===1);
+      await page.screenshot({path:'visual-review/desktop-docs-button.png'});
+    }
     if(name==='mobile'){
       // The gallery search is a REAL mobile-editable C++ field. Touch must
       // focus the shared native IME bridge; filtering must update the gallery.
@@ -47,16 +55,15 @@ try{
       await page.evaluate(()=>document.getElementById('native-input').blur());
     }
     if(name==='desktop'){
-      await clickItem(page,1004);
-      await page.waitForFunction(()=>window.__imguiGallery?.filter===4&&window.__imguiGallery.matching>0);
-      await page.screenshot({path:'visual-review/desktop-catalog-filtered.png'});
-      await clickItem(page,1000);
-      await page.waitForFunction(()=>window.__imguiGallery?.filter===0);
-      // Screenshot real list scrolling in the catalogue, not just the 100k-row demo.
-      await page.mouse.move(width*.63,height*.7);
+      // Independently scroll the right-hand examples. Left component list stays fixed.
+      const navBefore=await page.evaluate(()=>window.__imguiItems?.[1200]);
+      await page.mouse.move(width*.67,height*.7);
       await page.mouse.wheel(0,675);
       await page.waitForTimeout(200);
-      await page.screenshot({path:'visual-review/desktop-catalog-scrolled.png'});
+      await page.screenshot({path:'visual-review/desktop-docs-scrolled.png'});
+      const navAfter=await page.evaluate(()=>window.__imguiItems?.[1200]);
+      assert(navBefore&&navAfter&&Math.abs(navBefore.y-navAfter.y)<2,
+         'Sidebar must stay fixed while examples scroll');
       await page.mouse.wheel(0,-2600);
       await page.waitForTimeout(300);
     }
@@ -68,9 +75,12 @@ try{
       await page.waitForTimeout(150);
       // Card action must remain visible and clickable even when the
       // description wraps and the gallery has been scrolled.
+      // Inspect button is below the examples; scroll there intentionally.
+      await page.mouse.move(width*.67,height*.7);
+      await page.mouse.wheel(0,1900);
       await page.waitForFunction(()=>{
         const r=window.__imguiItems?.[900];
-        return r&&r.y>140&&r.y<880&&r.h>5;
+        return r&&r.y>140&&r.y<950&&r.h>5;
       });
       await clickItem(page,900,false);
       await page.waitForFunction(()=>window.__imguiUIState?.page===8);
